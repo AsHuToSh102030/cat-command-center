@@ -1,0 +1,72 @@
+.varc-page {
+  max-width: 1400px;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.analytics-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.analytics-card h2 {
+  color: #06b6d4;
+}
+
+.varc-form {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.varc-form input,
+.varc-form select,
+.varc-form textarea {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+}
+
+.varc-form textarea {
+  min-height: 100px;
+}
+
+.varc-form button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #06b6d4;
+  color: #0f172a;
+  font-weight: bold;
+}
+
+.set-list {
+  display: grid;
+  gap: 15px;
+}
+
+.set-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.delete-btn {
+  margin-top: 10px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}

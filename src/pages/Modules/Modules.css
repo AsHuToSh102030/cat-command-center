@@ -1,0 +1,156 @@
+.module-page {
+  max-width: 1400px;
+}
+
+.module-selector {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.module-btn {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #334155;
+  color: white;
+}
+
+.module-btn.active {
+  background: #06b6d4;
+  color: #0f172a;
+  font-weight: bold;
+}
+
+.module-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.module-stats {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(180px, 1fr)
+  );
+  gap: 15px;
+  margin: 20px 0 30px;
+}
+
+.stat-card {
+  background: #334155;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.stat-card span {
+  display: block;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+}
+
+.stat-card strong {
+  color: #06b6d4;
+  font-size: 24px;
+}
+
+.section {
+  margin-top: 30px;
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.input-row input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+}
+
+.input-row button {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.topic-card {
+  background: #334155;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.topic-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.expand-btn,
+.delete-btn {
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.expand-btn {
+  background: #06b6d4;
+  color: #0f172a;
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.progress-bar {
+  width: 250px;
+  height: 10px;
+  background: #1e293b;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #06b6d4;
+}
+
+.progress-text {
+  margin-top: 6px;
+  color: #06b6d4;
+  font-weight: bold;
+}
+
+.checklist {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(180px, 1fr)
+  );
+  gap: 10px;
+}
+
+.checkbox-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

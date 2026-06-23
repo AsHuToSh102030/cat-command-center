@@ -1,0 +1,72 @@
+.goals-page {
+  max-width: 1400px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.stat-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.stat-card h2 {
+  color: #06b6d4;
+}
+
+.goal-form {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.goal-form input {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+}
+
+.goal-form button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #06b6d4;
+  color: #0f172a;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.goal-list {
+  display: grid;
+  gap: 15px;
+}
+
+.goal-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.goal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}

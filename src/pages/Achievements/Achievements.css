@@ -1,0 +1,30 @@
+.achievements-page {
+  max-width: 1400px;
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 25px;
+}
+
+.achievement {
+  padding: 25px;
+  border-radius: 16px;
+  border: 1px solid #334155;
+}
+
+.unlocked {
+  background: #1e293b;
+}
+
+.locked {
+  background: #111827;
+  opacity: 0.6;
+}
+
+.achievement h2 {
+  color: #06b6d4;
+}

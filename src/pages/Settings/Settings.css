@@ -1,0 +1,30 @@
+.settings-page {
+  max-width: 1000px;
+}
+
+.settings-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 25px;
+  display: grid;
+  gap: 12px;
+}
+
+.settings-card label {
+  font-weight: bold;
+}
+
+.settings-card input {
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+}
+
+.saved-box {
+  margin-top: 20px;
+  padding: 12px;
+  background: #0f172a;
+  border-radius: 8px;
+  color: #06b6d4;
+}
