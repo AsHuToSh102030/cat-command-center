@@ -6,6 +6,7 @@ function Goals() {
   const [goals, setGoals] = useState([]);
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(true);
+  const [expandedDates, setExpandedDates] = useState({});
 
   useEffect(() => {
     loadGoals();
@@ -122,6 +123,16 @@ function Goals() {
     }
   };
 
+  const toggleExpandDate =
+    (date) => {
+      setExpandedDates(
+        (prev) => ({
+          ...prev,
+          [date]: !prev[date]
+        })
+      );
+    };
+
   const stats = useMemo(() => {
     return {
       total: goals.length,
@@ -131,6 +142,52 @@ function Goals() {
             goal.completed
         ).length
     };
+  }, [goals]);
+
+  const groupedGoals = useMemo(() => {
+    const grouped = {};
+
+    goals.forEach((goal) => {
+      const date =
+        new Date(goal.created_at)
+          .toISOString()
+          .split("T")[0];
+
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+
+      grouped[date].push(goal);
+    });
+
+    const sorted =
+      Object.entries(grouped)
+        .sort(
+          ([dateA], [dateB]) =>
+            new Date(dateB) -
+            new Date(dateA)
+        );
+
+    return sorted.map(
+      ([date, goalsForDate]) => {
+        const completed =
+          goalsForDate.filter(
+            (g) =>
+              g.completed
+          ).length;
+
+        return {
+          date,
+          goals: goalsForDate,
+          total:
+            goalsForDate.length,
+          completed,
+          pending:
+            goalsForDate.length -
+            completed
+        };
+      }
+    );
   }, [goals]);
 
   if (loading) {
@@ -183,7 +240,7 @@ function Goals() {
 
       <div className="goal-list">
 
-        {goals.length === 0 && (
+        {groupedGoals.length === 0 && (
           <div className="goal-card">
             <h3>No Goals Yet</h3>
             <p>
@@ -192,51 +249,138 @@ function Goals() {
           </div>
         )}
 
-        {goals.map((goal) => (
-          <div
-            key={goal.id}
-            className="goal-card"
-          >
+        {groupedGoals.map(
+          (dayGroup) => (
+            <div
+              key={dayGroup.date}
+              className="day-group-card"
+            >
 
-            <h3>
-              {goal.text}
-            </h3>
-
-            <p>
-              Status:
-              {" "}
-              {goal.completed
-                ? "✅ Completed"
-                : "⏳ Pending"}
-            </p>
-
-            <div className="goal-actions">
-
-              <button
+              <div
+                className="day-group-header"
                 onClick={() =>
-                  toggleGoal(
-                    goal.id
+                  toggleExpandDate(
+                    dayGroup.date
                   )
                 }
               >
-                Toggle
-              </button>
 
-              <button
-                className="delete-btn"
-                onClick={() =>
-                  deleteGoal(
-                    goal.id
-                  )
-                }
-              >
-                Delete
-              </button>
+                <div className="day-group-info">
+                  <h3>
+                    📅{" "}
+                    {
+                      dayGroup.date
+                    }
+                  </h3>
+
+                  <div className="day-group-stats">
+                    <span>
+                      {
+                        dayGroup.total
+                      }
+                      {" "}
+                      goals
+                    </span>
+
+                    <span>
+                      •
+                    </span>
+
+                    <span>
+                      {
+                        dayGroup.completed
+                      }
+                      {" "}
+                      completed
+                    </span>
+
+                    <span>
+                      •
+                    </span>
+
+                    <span>
+                      {
+                        dayGroup.pending
+                      }
+                      {" "}
+                      pending
+                    </span>
+                  </div>
+                </div>
+
+                <div className="expand-icon">
+                  {
+                    expandedDates[
+                      dayGroup.date
+                    ]
+                      ? "▼"
+                      : "▶"
+                  }
+                </div>
+
+              </div>
+
+              {expandedDates[
+                dayGroup.date
+              ] && (
+                <div className="day-group-goals">
+
+                  {dayGroup.goals.map(
+                    (goal) => (
+                      <div
+                        key={goal.id}
+                        className="grouped-goal-item"
+                      >
+
+                        <div className="goal-details">
+                          <h4>
+                            {goal.text}
+                          </h4>
+
+                          <p>
+                            Status:
+                            {" "}
+                            {goal.completed
+                              ? "✅ Completed"
+                              : "⏳ Pending"}
+                          </p>
+                        </div>
+
+                        <div className="goal-actions">
+
+                          <button
+                            onClick={() =>
+                              toggleGoal(
+                                goal.id
+                              )
+                            }
+                          >
+                            Toggle
+                          </button>
+
+                          <button
+                            className="delete-btn"
+                            onClick={() =>
+                              deleteGoal(
+                                goal.id
+                              )
+                            }
+                          >
+                            Delete
+                          </button>
+
+                        </div>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+              )}
 
             </div>
-
-          </div>
-        ))}
+          )
+        )}
 
       </div>
 

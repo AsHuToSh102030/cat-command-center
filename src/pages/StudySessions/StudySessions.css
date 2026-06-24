@@ -70,10 +70,114 @@
 }
 
 .session-list {
-  display: grid;
-  grid-template-columns:
-    repeat(auto-fit, minmax(320px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+}
+
+.day-group-card {
+  background: linear-gradient(
+    135deg,
+    #111827,
+    #1e293b
+  );
+  border: 1px solid #334155;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.day-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.day-group-header:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.day-group-info {
+  flex: 1;
+}
+
+.day-group-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #22d3ee;
+}
+
+.day-group-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  color: #cbd5e1;
+  flex-wrap: wrap;
+}
+
+.expand-icon {
+  font-size: 14px;
+  color: #cbd5e1;
+  transition: transform 0.3s ease;
+  margin-left: 16px;
+  font-weight: 600;
+}
+
+.day-group-sessions {
+  border-top: 1px solid #334155;
+  padding: 12px 24px;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.grouped-session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #334155;
+}
+
+.grouped-session-item:last-child {
+  border-bottom: none;
+}
+
+.session-details {
+  flex: 1;
+}
+
+.session-details h4 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #22d3ee;
+}
+
+.session-details p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.grouped-session-item .delete-btn {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  font-size: 14px;
+  white-space: nowrap;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.grouped-session-item .delete-btn:hover {
+  background: #dc2626;
 }
 
 .session-card {
@@ -107,6 +211,11 @@
   padding: 12px;
   cursor: pointer;
   font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.delete-btn:hover {
+  background: #dc2626;
 }
 
 @media (max-width: 768px) {
@@ -115,8 +224,48 @@
     grid-template-columns: 1fr;
   }
 
-  .session-list {
-    grid-template-columns: 1fr;
+  .day-group-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .expand-icon {
+    margin-left: 0;
+  }
+
+  .day-group-info {
+    width: 100%;
+  }
+
+  .day-group-header h3 {
+    font-size: 16px;
+  }
+
+  .day-group-stats {
+    font-size: 13px;
+  }
+
+  .day-group-sessions {
+    padding: 12px 16px;
+  }
+
+  .grouped-session-item {
+    flex-direction: column;
+    padding: 12px 0;
+  }
+
+  .grouped-session-item .delete-btn {
+    width: 100%;
+  }
+
+  .session-details h4 {
+    font-size: 15px;
+  }
+
+  .session-details p {
+    font-size: 13px;
   }
 
 }

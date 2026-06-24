@@ -5,6 +5,7 @@ import "./StudySessions.css";
 function StudySessions() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDates, setExpandedDates] = useState({});
 
   const [form, setForm] = useState({
     subject: "QA",
@@ -24,7 +25,10 @@ function StudySessions() {
         data: { user }
       } = await supabase.auth.getUser();
 
+      console.log("Current user:", user);
+
       if (!user) {
+        console.log("No user found in loadSessions");
         setLoading(false);
         return;
       }
@@ -38,13 +42,19 @@ function StudySessions() {
             ascending: false
           });
 
+      console.log("Sessions loaded:", data);
+      console.log("Load error:", error);
+
       if (!error) {
         setSessions(data || []);
       }
 
       setLoading(false);
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Unexpected error in loadSessions:",
+        err
+      );
       setLoading(false);
     }
   };
@@ -95,19 +105,109 @@ function StudySessions() {
     };
   }, [sessions]);
 
+  const groupedSessions = useMemo(() => {
+    const grouped = {};
+
+    sessions.forEach((session) => {
+      const date = session.date;
+
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+
+      grouped[date].push(session);
+    });
+
+    const sorted =
+      Object.entries(grouped)
+        .sort(
+          ([dateA], [dateB]) =>
+            new Date(dateB) -
+            new Date(dateA)
+        );
+
+    return sorted.map(
+      ([date, sessionsForDate]) => {
+        const totalMinutes =
+          sessionsForDate.reduce(
+            (sum, session) =>
+              sum +
+              Number(
+                session.duration || 0
+              ),
+            0
+          );
+
+        const totalHours =
+          Math.round(
+            (totalMinutes / 60) * 10
+          ) / 10;
+
+        const averageProductivity =
+          Math.round(
+            sessionsForDate.reduce(
+              (sum, session) =>
+                sum +
+                Number(
+                  session.productivity ||
+                    0
+                ),
+              0
+            ) / sessionsForDate.length
+          );
+
+        return {
+          date,
+          sessions:
+            sessionsForDate,
+          totalMinutes,
+          totalHours,
+          averageProductivity,
+          sessionCount:
+            sessionsForDate.length
+        };
+      }
+    );
+  }, [sessions]);
+
+  const toggleExpandDate =
+    (date) => {
+      setExpandedDates(
+        (prev) => ({
+          ...prev,
+          [date]: !prev[date]
+        })
+      );
+    };
+
   const addSession = async () => {
     if (
       !form.topic ||
       !form.duration
-    )
+    ) {
+      console.warn(
+        "Form incomplete: topic or duration missing"
+      );
+      alert(
+        "Please fill in topic and duration"
+      );
       return;
+    }
 
     try {
       const {
         data: { user }
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      console.log("Current user:", user);
+
+      if (!user) {
+        console.error(
+          "No user found in addSession"
+        );
+        alert("User not authenticated");
+        return;
+      }
 
       const newSession = {
         user_id: user.id,
@@ -126,28 +226,71 @@ function StudySessions() {
             .split("T")[0]
       };
 
+      console.log(
+        "Session being inserted:",
+        newSession
+      );
+
       const { data, error } =
         await supabase
           .from("study_sessions")
           .insert([newSession])
           .select();
 
-      if (!error && data) {
-        setSessions([
-          data[0],
-          ...sessions
-        ]);
+      console.log("INSERT DATA:", data);
+      console.log("INSERT ERROR:", error);
 
-        setForm({
-          subject: "QA",
-          topic: "",
-          duration: "",
-          productivity: "8",
-          notes: ""
-        });
+      if (error) {
+        console.error(
+          "Supabase insert error:",
+          error
+        );
+        alert(
+          JSON.stringify(error)
+        );
+        return;
       }
+
+      if (!data) {
+        console.error(
+          "No data returned from insert"
+        );
+        alert(
+          "No data returned from insert"
+        );
+        return;
+      }
+
+      console.log(
+        "Session added successfully:",
+        data[0]
+      );
+
+      setSessions([
+        data[0],
+        ...sessions
+      ]);
+
+      setForm({
+        subject: "QA",
+        topic: "",
+        duration: "",
+        productivity: "8",
+        notes: ""
+      });
+
+      alert(
+        "Session added successfully"
+      );
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Unexpected error in addSession:",
+        err
+      );
+      alert(
+        "Unexpected error: " +
+          err.message
+      );
     }
   };
 
@@ -155,22 +298,57 @@ function StudySessions() {
     id
   ) => {
     try {
+      console.log(
+        "Deleting session with id:",
+        id
+      );
+
       const { error } =
         await supabase
           .from("study_sessions")
           .delete()
           .eq("id", id);
 
-      if (!error) {
-        setSessions(
-          sessions.filter(
-            (session) =>
-              session.id !== id
-          )
+      console.log(
+        "Delete error:",
+        error
+      );
+
+      if (error) {
+        console.error(
+          "Supabase delete error:",
+          error
         );
+        alert(
+          "Failed to delete session: " +
+            JSON.stringify(error)
+        );
+        return;
       }
+
+      console.log(
+        "Session deleted successfully"
+      );
+
+      setSessions(
+        sessions.filter(
+          (session) =>
+            session.id !== id
+        )
+      );
+
+      alert(
+        "Session deleted successfully"
+      );
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Unexpected error in deleteSession:",
+        err
+      );
+      alert(
+        "Unexpected error: " +
+          err.message
+      );
     }
   };
 
@@ -345,67 +523,149 @@ function StudySessions() {
 
       <div className="session-list">
 
-        {sessions.map(
-          (session) => (
+        {groupedSessions.map(
+          (dayGroup) => (
             <div
-              key={
-                session.id
-              }
-              className="session-card"
+              key={dayGroup.date}
+              className="day-group-card"
             >
 
-              <h2>
-                {
-                  session.topic
-                }
-              </h2>
-
-              <p>
-                📚{" "}
-                {session.subject ||
-                  session.module}
-              </p>
-
-              <p>
-                ⏱{" "}
-                {
-                  session.duration
-                }
-                min
-              </p>
-
-              <p>
-                ⭐{" "}
-                {
-                  session.productivity
-                }
-                /10
-              </p>
-
-              <p>
-                📅{" "}
-                {
-                  session.date
-                }
-              </p>
-
-              <p>
-                📝{" "}
-                {
-                  session.notes
-                }
-              </p>
-
-              <button
-                className="delete-btn"
+              <div
+                className="day-group-header"
                 onClick={() =>
-                  deleteSession(
-                    session.id
+                  toggleExpandDate(
+                    dayGroup.date
                   )
                 }
               >
-                Delete
-              </button>
+
+                <div className="day-group-info">
+                  <h3>
+                    📅{" "}
+                    {
+                      dayGroup.date
+                    }
+                  </h3>
+
+                  <div className="day-group-stats">
+                    <span>
+                      {
+                        dayGroup.sessionCount
+                      }
+                      {" "}
+                      sessions
+                    </span>
+
+                    <span>
+                      •
+                    </span>
+
+                    <span>
+                      {
+                        dayGroup.totalHours
+                      }
+                      h
+                    </span>
+
+                    <span>
+                      •
+                    </span>
+
+                    <span>
+                      ⭐
+                      {" "}
+                      {
+                        dayGroup.averageProductivity
+                      }
+                      /10
+                    </span>
+                  </div>
+                </div>
+
+                <div className="expand-icon">
+                  {
+                    expandedDates[
+                      dayGroup.date
+                    ]
+                      ? "▼"
+                      : "▶"
+                  }
+                </div>
+
+              </div>
+
+              {expandedDates[
+                dayGroup.date
+              ] && (
+                <div className="day-group-sessions">
+
+                  {dayGroup.sessions.map(
+                    (session) => (
+                      <div
+                        key={
+                          session.id
+                        }
+                        className="grouped-session-item"
+                      >
+
+                        <div className="session-details">
+                          <h4>
+                            {
+                              session.topic
+                            }
+                          </h4>
+
+                          <p>
+                            📚{" "}
+                            {
+                              session.subject ||
+                              session.module
+                            }
+                          </p>
+
+                          <p>
+                            ⏱{" "}
+                            {
+                              session.duration
+                            }
+                            min
+                          </p>
+
+                          <p>
+                            ⭐{" "}
+                            {
+                              session.productivity
+                            }
+                            /10
+                          </p>
+
+                          {session.notes && (
+                            <p>
+                              📝{" "}
+                              {
+                                session.notes
+                              }
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          className="delete-btn"
+                          onClick={() =>
+                            deleteSession(
+                              session.id
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+              )}
 
             </div>
           )
