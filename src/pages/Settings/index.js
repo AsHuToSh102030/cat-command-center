@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import "./Settings.css";
 
@@ -21,6 +22,8 @@ function Settings() {
 
   const [loading, setLoading] =
     useState(true);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadSettings();
@@ -249,6 +252,28 @@ function Settings() {
       }
     };
 
+  const handleLogout =
+    async () => {
+      try {
+        const { error } =
+          await supabase.auth.signOut();
+
+        if (error) {
+          console.error(error);
+          alert(
+            "Failed to logout"
+          );
+        } else {
+          navigate("/login");
+        }
+      } catch (err) {
+        console.error(err);
+        alert(
+          "Failed to logout"
+        );
+      }
+    };
+
   const daysLeft =
     Math.ceil(
       (new Date(catDate) -
@@ -395,6 +420,15 @@ function Settings() {
           }
         >
           Reset All Data
+        </button>
+
+        <button
+          className="logout-btn-mobile"
+          onClick={
+            handleLogout
+          }
+        >
+          Logout
         </button>
 
       </div>
