@@ -23,20 +23,36 @@ function Mocks() {
   }, []);
 
   const loadMocks = async () => {
-    const { data, error } = await supabase
-      .from("mocks")
-      .select("*")
-      .order("created_at", {
-        ascending: false
-      });
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error(error);
-    } else {
-      setMocks(data || []);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } =
+        await supabase
+          .from("mocks")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (error) {
+        console.error(error);
+      } else {
+        setMocks(data || []);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error("Error loading mocks:", err);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const analytics = useMemo(() => {
@@ -92,107 +108,111 @@ function Mocks() {
     if (!form.name || !form.date)
       return;
 
-    const correct =
-      Number(form.correct || 0);
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    const incorrect =
-      Number(
-        form.incorrect || 0
-      );
+      if (!user) return;
 
-    const attempts =
-      correct + incorrect;
+      const correct =
+        Number(form.correct || 0);
 
-    const accuracy =
-      attempts === 0
-        ? 0
-        : Math.round(
-            (correct /
-              attempts) *
-              100
-          );
+      const incorrect =
+        Number(
+          form.incorrect || 0
+        );
 
-    const newMock = {
-      id: Date.now(),
+      const attempts =
+        correct + incorrect;
 
-      name: form.name,
-      date: form.date,
+      const accuracy =
+        attempts === 0
+          ? 0
+          : Math.round(
+              (correct /
+                attempts) *
+                100
+            );
 
-      score: Number(
-        form.score || 0
-      ),
+      const newMock = {
+        user_id: user.id,
 
-      percentile: Number(
-        form.percentile || 0
-      ),
+        name: form.name,
+        date: form.date,
 
-      correct,
-      incorrect,
-      attempts,
-      accuracy,
+        score: Number(
+          form.score || 0
+        ),
 
-      strengths:
-        form.strengths,
+        percentile: Number(
+          form.percentile || 0
+        ),
 
-      weaknesses:
-        form.weaknesses,
+        correct,
+        incorrect,
+        attempts,
+        accuracy,
 
-      lessons:
-        form.lessons
-    };
+        strengths:
+          form.strengths,
 
-    const { data, error } =
-      await supabase
-        .from("mocks")
-        .insert([newMock])
-        .select();
+        weaknesses:
+          form.weaknesses,
 
-    console.log(
-      "INSERT DATA:",
-      data
-    );
+        lessons:
+          form.lessons
+      };
 
-    console.log(
-      "INSERT ERROR:",
-      error
-    );
+      const { data, error } =
+        await supabase
+          .from("mocks")
+          .insert([newMock])
+          .select();
 
-    if (!error && data) {
-      setMocks([
-        data[0],
-        ...mocks
-      ]);
+      if (!error && data) {
+        setMocks([
+          data[0],
+          ...mocks
+        ]);
 
-      setForm({
-        name: "",
-        date: "",
-        score: "",
-        percentile: "",
-        correct: "",
-        incorrect: "",
-        strengths: "",
-        weaknesses: "",
-        lessons: ""
-      });
+        setForm({
+          name: "",
+          date: "",
+          score: "",
+          percentile: "",
+          correct: "",
+          incorrect: "",
+          strengths: "",
+          weaknesses: "",
+          lessons: ""
+        });
+      }
+    } catch (err) {
+      console.error("Error adding mock:", err);
     }
   };
 
   const deleteMock = async (
     id
   ) => {
-    const { error } =
-      await supabase
-        .from("mocks")
-        .delete()
-        .eq("id", id);
+    try {
+      const { error } =
+        await supabase
+          .from("mocks")
+          .delete()
+          .eq("id", id);
 
-    if (!error) {
-      setMocks(
-        mocks.filter(
-          (mock) =>
-            mock.id !== id
-        )
-      );
+      if (!error) {
+        setMocks(
+          mocks.filter(
+            (mock) =>
+              mock.id !== id
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Error deleting mock:", err);
     }
   };
 

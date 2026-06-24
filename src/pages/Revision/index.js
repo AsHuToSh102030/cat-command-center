@@ -19,23 +19,35 @@ function Revision() {
 
   const fetchRevisions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("revisions")
-        .select("*")
-        .order("created_at", {
-          ascending: false
-        });
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } =
+        await supabase
+          .from("revisions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          });
 
       if (error) {
         console.error(error);
         alert(error.message);
+        setLoading(false);
         return;
       }
 
       setRevisions(data || []);
+      setLoading(false);
     } catch (err) {
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
@@ -49,24 +61,28 @@ function Revision() {
     return {
       dueToday: revisions.filter(
         (item) =>
-          item.revision_date === today &&
+          item.revision_date ===
+            today &&
           item.status === "Pending"
       ).length,
 
       overdue: revisions.filter(
         (item) =>
-          item.revision_date < today &&
+          item.revision_date <
+            today &&
           item.status === "Pending"
       ).length,
 
       completed: revisions.filter(
         (item) =>
-          item.status === "Completed"
+          item.status ===
+          "Completed"
       ).length,
 
       pending: revisions.filter(
         (item) =>
-          item.status === "Pending"
+          item.status ===
+          "Pending"
       ).length
     };
   }, [revisions]);
@@ -83,7 +99,17 @@ function Revision() {
     }
 
     try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert("User not authenticated");
+        return;
+      }
+
       const revisionData = {
+        user_id: user.id,
         topic: form.topic,
         type: form.type,
         priority: form.priority,
@@ -121,7 +147,9 @@ function Revision() {
       });
     } catch (err) {
       console.error(err);
-      alert("Failed to add revision");
+      alert(
+        "Failed to add revision"
+      );
     }
   };
 
@@ -142,60 +170,76 @@ function Revision() {
         ? "Completed"
         : "Pending";
 
-    const { error } =
-      await supabase
-        .from("revisions")
-        .update({
-          status: newStatus
-        })
-        .eq("id", id);
+    try {
+      const { error } =
+        await supabase
+          .from("revisions")
+          .update({
+            status: newStatus
+          })
+          .eq("id", id);
 
-    if (error) {
-      console.error(error);
-      alert(error.message);
-      return;
+      if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+      }
+
+      setRevisions(
+        revisions.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status:
+                  newStatus
+              }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      alert(
+        "Failed to update status"
+      );
     }
-
-    setRevisions(
-      revisions.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status:
-                newStatus
-            }
-          : item
-      )
-    );
   };
 
   const deleteRevision = async (
     id
   ) => {
-    const { error } =
-      await supabase
-        .from("revisions")
-        .delete()
-        .eq("id", id);
+    try {
+      const { error } =
+        await supabase
+          .from("revisions")
+          .delete()
+          .eq("id", id);
 
-    if (error) {
-      console.error(error);
-      alert(error.message);
-      return;
+      if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+      }
+
+      setRevisions(
+        revisions.filter(
+          (item) =>
+            item.id !== id
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      alert(
+        "Failed to delete revision"
+      );
     }
-
-    setRevisions(
-      revisions.filter(
-        (item) =>
-          item.id !== id
-      )
-    );
   };
 
   if (loading) {
     return (
       <div className="revision-page">
-        <h2>Loading...</h2>
+        <h2>
+          Loading...
+        </h2>
       </div>
     );
   }
@@ -211,29 +255,41 @@ function Revision() {
 
         <div className="analytics-card">
           <h3>Due Today</h3>
+
           <h2>
-            {analytics.dueToday}
+            {
+              analytics.dueToday
+            }
           </h2>
         </div>
 
         <div className="analytics-card">
           <h3>Overdue</h3>
+
           <h2>
-            {analytics.overdue}
+            {
+              analytics.overdue
+            }
           </h2>
         </div>
 
         <div className="analytics-card">
           <h3>Pending</h3>
+
           <h2>
-            {analytics.pending}
+            {
+              analytics.pending
+            }
           </h2>
         </div>
 
         <div className="analytics-card">
           <h3>Completed</h3>
+
           <h2>
-            {analytics.completed}
+            {
+              analytics.completed
+            }
           </h2>
         </div>
 
@@ -348,12 +404,16 @@ function Revision() {
 
               <p>
                 📅 Created:{" "}
-                {item.created_date}
+                {
+                  item.created_date
+                }
               </p>
 
               <p>
                 ⏰ Revision:{" "}
-                {item.revision_date}
+                {
+                  item.revision_date
+                }
               </p>
 
               <p>

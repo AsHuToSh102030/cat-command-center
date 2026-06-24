@@ -17,28 +17,41 @@ function Achievements() {
     try {
       setLoading(true);
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       const [
         modulesResponse,
         mocksResponse,
         mistakesResponse,
-        revisionsResponse
+        revisionsResponse,
       ] = await Promise.all([
         supabase
           .from("modules")
           .select("*")
+          .eq("user_id", user.id)
           .limit(1),
 
         supabase
           .from("mocks")
-          .select("*"),
+          .select("*")
+          .eq("user_id", user.id),
 
         supabase
           .from("mistakes")
-          .select("*"),
+          .select("*")
+          .eq("user_id", user.id),
 
         supabase
           .from("revisions")
           .select("*")
+          .eq("user_id", user.id),
       ]);
 
       if (
@@ -49,6 +62,8 @@ function Achievements() {
           modulesResponse.data[0]
             .module_data || []
         );
+      } else {
+        setModules([]);
       }
 
       setMocks(
@@ -62,6 +77,7 @@ function Achievements() {
       setRevisions(
         revisionsResponse.data || []
       );
+
     } catch (error) {
       console.error(
         "Achievements Load Error:",
@@ -79,7 +95,7 @@ function Achievements() {
       const topics = [
         ...(module.qa || []),
         ...(module.dilr || []),
-        ...(module.varc || [])
+        ...(module.varc || []),
       ];
 
       topics.forEach((topic) => {
@@ -92,7 +108,7 @@ function Achievements() {
           "formula",
           "notes",
           "revision1",
-          "revision2"
+          "revision2",
         ];
 
         const completed =
@@ -127,49 +143,49 @@ function Achievements() {
         icon: "🎯",
         name: "First Topic",
         current: completedTopics,
-        target: 1
+        target: 1,
       },
       {
         icon: "🥉",
         name: "Topic Crusher",
         current: completedTopics,
-        target: 10
+        target: 10,
       },
       {
         icon: "🥈",
         name: "Topic Master",
         current: completedTopics,
-        target: 25
+        target: 25,
       },
       {
         icon: "🥇",
         name: "Topic Legend",
         current: completedTopics,
-        target: 50
+        target: 50,
       },
       {
         icon: "🏆",
         name: "Mock Warrior",
         current: mocks.length,
-        target: 5
+        target: 5,
       },
       {
         icon: "⚔️",
         name: "Mock Monster",
         current: mocks.length,
-        target: 20
+        target: 20,
       },
       {
         icon: "🔍",
         name: "Mistake Hunter",
         current: fixedMistakes,
-        target: 10
+        target: 10,
       },
       {
         icon: "📚",
         name: "Revision Master",
         current: completedRevisions,
-        target: 25
+        target: 25,
       },
       {
         icon: "👑",
@@ -177,14 +193,14 @@ function Achievements() {
         current:
           completedTopics +
           mocks.length,
-        target: 70
-      }
+        target: 70,
+      },
     ];
   }, [
     modules,
     mocks,
     mistakes,
-    revisions
+    revisions,
   ]);
 
   const unlockedCount =
@@ -204,16 +220,11 @@ function Achievements() {
 
   return (
     <div className="achievements-page">
-
-      <h1>
-        🏆 Achievements
-      </h1>
+      <h1>🏆 Achievements</h1>
 
       <div className="achievement-summary">
-
         <h2>
-          {unlockedCount}
-          {" / "}
+          {unlockedCount} /{" "}
           {achievements.length}
           {" "}
           Achievements Unlocked
@@ -225,11 +236,9 @@ function Achievements() {
           mocks, revisions and
           mistake fixing.
         </p>
-
       </div>
 
       <div className="achievement-grid">
-
         {achievements.map(
           (
             achievement,
@@ -258,7 +267,6 @@ function Achievements() {
                     : "achievement locked"
                 }
               >
-
                 <div className="achievement-icon">
                   {
                     achievement.icon
@@ -278,8 +286,7 @@ function Achievements() {
                 </h2>
 
                 <p>
-                  Progress:
-                  {" "}
+                  Progress:{" "}
                   {
                     achievement.current
                   }
@@ -290,32 +297,24 @@ function Achievements() {
                 </p>
 
                 <div className="progress-container">
-
                   <div className="progress-track">
-
                     <div
                       className="progress-fill"
                       style={{
-                        width:
-                          `${progress}%`
+                        width: `${progress}%`,
                       }}
                     />
-
                   </div>
 
                   <div className="progress-text">
                     {progress}%
                   </div>
-
                 </div>
-
               </div>
             );
           }
         )}
-
       </div>
-
     </div>
   );
 }

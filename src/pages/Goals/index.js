@@ -1,3 +1,4 @@
+```jsx
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import "./Goals.css";
@@ -12,25 +13,50 @@ function Goals() {
   }, []);
 
   const loadGoals = async () => {
-    const { data, error } = await supabase
-      .from("goals")
-      .select("*")
-      .order("created_at", {
-        ascending: false
-      });
+    try {
+      setLoading(true);
 
-    if (!error) {
-      setGoals(data || []);
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: false
+        });
+
+      if (!error) {
+        setGoals(data || []);
+      }
+    } catch (error) {
+      console.error(
+        "Goals Load Error:",
+        error
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const addGoal = async () => {
     if (!goal.trim()) return;
 
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
     const newGoal = {
-      id: Date.now(),
+      user_id: user.id,
       text: goal,
       completed: false
     };
@@ -40,7 +66,7 @@ function Goals() {
       .insert([newGoal])
       .select();
 
-    if (!error) {
+    if (!error && data) {
       setGoals([
         data[0],
         ...goals
@@ -220,3 +246,4 @@ function Goals() {
 }
 
 export default Goals;
+```

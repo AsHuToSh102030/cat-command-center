@@ -19,21 +19,34 @@ function StudySessions() {
   }, []);
 
   const loadSessions = async () => {
-    const { data, error } = await supabase
-      .from("study_sessions")
-      .select("*")
-      .order("created_at", {
-        ascending: false
-      });
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    console.log(data);
-    console.log(error);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    if (!error) {
-      setSessions(data || []);
+      const { data, error } =
+        await supabase
+          .from("study_sessions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (!error) {
+        setSessions(data || []);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const analytics = useMemo(() => {
@@ -89,64 +102,75 @@ function StudySessions() {
     )
       return;
 
-    const newSession = {
-      id: Date.now(),
-      module: form.subject,
-      subject: form.subject,
-      topic: form.topic,
-      duration: Number(
-        form.duration
-      ),
-      productivity:
-        form.productivity,
-      notes: form.notes,
-      date:
-        new Date()
-          .toISOString()
-          .split("T")[0]
-    };
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    const { data, error } =
-      await supabase
-        .from("study_sessions")
-        .insert([newSession])
-        .select();
+      if (!user) return;
 
-    console.log(data);
-    console.log(error);
+      const newSession = {
+        user_id: user.id,
+        module: form.subject,
+        subject: form.subject,
+        topic: form.topic,
+        duration: Number(
+          form.duration
+        ),
+        productivity:
+          form.productivity,
+        notes: form.notes,
+        date:
+          new Date()
+            .toISOString()
+            .split("T")[0]
+      };
 
-    if (!error) {
-      setSessions([
-        data[0],
-        ...sessions
-      ]);
+      const { data, error } =
+        await supabase
+          .from("study_sessions")
+          .insert([newSession])
+          .select();
 
-      setForm({
-        subject: "QA",
-        topic: "",
-        duration: "",
-        productivity: "8",
-        notes: ""
-      });
+      if (!error && data) {
+        setSessions([
+          data[0],
+          ...sessions
+        ]);
+
+        setForm({
+          subject: "QA",
+          topic: "",
+          duration: "",
+          productivity: "8",
+          notes: ""
+        });
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const deleteSession = async (
     id
   ) => {
-    const { error } =
-      await supabase
-        .from("study_sessions")
-        .delete()
-        .eq("id", id);
+    try {
+      const { error } =
+        await supabase
+          .from("study_sessions")
+          .delete()
+          .eq("id", id);
 
-    if (!error) {
-      setSessions(
-        sessions.filter(
-          (session) =>
-            session.id !== id
-        )
-      );
+      if (!error) {
+        setSessions(
+          sessions.filter(
+            (session) =>
+              session.id !== id
+          )
+        );
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -175,6 +199,7 @@ function StudySessions() {
 
         <div className="stat-card">
           <h3>Total Hours</h3>
+
           <h2>
             {
               analytics.totalHours
@@ -184,6 +209,7 @@ function StudySessions() {
 
         <div className="stat-card">
           <h3>Sessions</h3>
+
           <h2>
             {
               analytics.totalSessions
@@ -195,6 +221,7 @@ function StudySessions() {
           <h3>
             Avg Hours
           </h3>
+
           <h2>
             {
               analytics.averageHours
@@ -206,6 +233,7 @@ function StudySessions() {
           <h3>
             Active Days
           </h3>
+
           <h2>
             {
               analytics.streak

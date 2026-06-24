@@ -15,72 +15,89 @@ function Analytics() {
   }, []);
 
   const loadAnalytics = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const [
-        modulesRes,
-        mocksRes,
-        mistakesRes,
-        revisionsRes,
-        varcRes
-      ] = await Promise.all([
-        supabase
-          .from("modules")
-          .select("*")
-          .limit(1),
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-        supabase
-          .from("mocks")
-          .select("*"),
-
-        supabase
-          .from("mistakes")
-          .select("*"),
-
-        supabase
-          .from("revisions")
-          .select("*"),
-
-        supabase
-          .from("varc_sets")
-          .select("*")
-      ]);
-
-      if (
-        modulesRes.data &&
-        modulesRes.data.length > 0
-      ) {
-        setModules(
-          modulesRes.data[0]
-            .module_data || []
-        );
-      }
-
-      setMocks(
-        mocksRes.data || []
-      );
-
-      setMistakes(
-        mistakesRes.data || []
-      );
-
-      setRevisions(
-        revisionsRes.data || []
-      );
-
-      setVarcSets(
-        varcRes.data || []
-      );
-    } catch (error) {
-      console.error(
-        "Analytics Error:",
-        error
-      );
-    } finally {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  };
+
+    const [
+      modulesRes,
+      mocksRes,
+      mistakesRes,
+      revisionsRes,
+      varcRes
+    ] = await Promise.all([
+      supabase
+        .from("modules")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1),
+
+      supabase
+        .from("mocks")
+        .select("*")
+        .eq("user_id", user.id),
+
+      supabase
+        .from("mistakes")
+        .select("*")
+        .eq("user_id", user.id),
+
+      supabase
+        .from("revisions")
+        .select("*")
+        .eq("user_id", user.id),
+
+      supabase
+        .from("varc_sets")
+        .select("*")
+        .eq("user_id", user.id)
+    ]);
+
+    if (
+      modulesRes.data &&
+      modulesRes.data.length > 0
+    ) {
+      setModules(
+        modulesRes.data[0]
+          .module_data || []
+      );
+    } else {
+      setModules([]);
+    }
+
+    setMocks(
+      mocksRes.data || []
+    );
+
+    setMistakes(
+      mistakesRes.data || []
+    );
+
+    setRevisions(
+      revisionsRes.data || []
+    );
+
+    setVarcSets(
+      varcRes.data || []
+    );
+
+  } catch (error) {
+    console.error(
+      "Analytics Error:",
+      error
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const analytics = useMemo(() => {
     let totalTopics = 0;

@@ -14,82 +14,101 @@ function Dashboard() {
     loadDashboard();
   }, []);
 
-  const loadDashboard = async () => {
-    try {
-      setLoading(true);
+ const loadDashboard = async () => {
+  try {
+    setLoading(true);
 
-      const [
-        modulesRes,
-        mocksRes,
-        mistakesRes,
-        revisionsRes,
-        settingsRes
-      ] = await Promise.all([
-        supabase
-          .from("modules")
-          .select("*")
-          .limit(1),
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-        supabase
-          .from("mocks")
-          .select("*")
-          .order("created_at", {
-            ascending: false
-          }),
-
-        supabase
-          .from("mistakes")
-          .select("*"),
-
-        supabase
-          .from("revisions")
-          .select("*"),
-
-        supabase
-          .from("settings")
-          .select("*")
-          .limit(1)
-      ]);
-
-      if (
-        modulesRes.data &&
-        modulesRes.data.length > 0
-      ) {
-        setModules(
-          modulesRes.data[0]
-            .module_data || []
-        );
-      }
-
-      setMocks(
-        mocksRes.data || []
-      );
-
-      setMistakes(
-        mistakesRes.data || []
-      );
-
-      setRevisions(
-        revisionsRes.data || []
-      );
-
-      if (
-        settingsRes.data &&
-        settingsRes.data.length > 0
-      ) {
-        setSettings(
-          settingsRes.data[0]
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Dashboard Error:",
-        error
-      );
-    } finally {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  };
+
+    const [
+      modulesRes,
+      mocksRes,
+      mistakesRes,
+      revisionsRes,
+      settingsRes
+    ] = await Promise.all([
+      supabase
+        .from("modules")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1),
+
+      supabase
+        .from("mocks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: false
+        }),
+
+      supabase
+        .from("mistakes")
+        .select("*")
+        .eq("user_id", user.id),
+
+      supabase
+        .from("revisions")
+        .select("*")
+        .eq("user_id", user.id),
+
+      supabase
+        .from("settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1)
+    ]);
+
+    if (
+      modulesRes.data &&
+      modulesRes.data.length > 0
+    ) {
+      setModules(
+        modulesRes.data[0]
+          .module_data || []
+      );
+    } else {
+      setModules([]);
+    }
+
+    setMocks(
+      mocksRes.data || []
+    );
+
+    setMistakes(
+      mistakesRes.data || []
+    );
+
+    setRevisions(
+      revisionsRes.data || []
+    );
+
+    if (
+      settingsRes.data &&
+      settingsRes.data.length > 0
+    ) {
+      setSettings(
+        settingsRes.data[0]
+      );
+    } else {
+      setSettings(null);
+    }
+
+  } catch (error) {
+    console.error(
+      "Dashboard Error:",
+      error
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const dashboard = useMemo(() => {
     let totalTopics = 0;

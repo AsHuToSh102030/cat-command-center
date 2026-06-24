@@ -22,30 +22,42 @@ function Mistakes() {
   }, []);
 
   const loadMistakes = async () => {
-    const { data, error } =
-      await supabase
-        .from("mistakes")
-        .select("*")
-        .order("created_at", {
-          ascending: false
-        });
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    console.log(data);
-    console.log(error);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    if (!error) {
-      setMistakes(
-        (data || []).map(
-          (item) => ({
-            ...item,
-            revisionCount:
-              item.revision_count || 0
-          })
-        )
-      );
+      const { data, error } =
+        await supabase
+          .from("mistakes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (!error) {
+        setMistakes(
+          (data || []).map(
+            (item) => ({
+              ...item,
+              revisionCount:
+                item.revision_count || 0
+            })
+          )
+        );
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error("Error loading mistakes:", err);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const analytics = useMemo(() => {
@@ -79,162 +91,176 @@ function Mistakes() {
       return;
     }
 
-    const newMistake = {
-      id: Date.now(),
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-      subject:
-        form.subject,
+      if (!user) return;
 
-      topic: form.topic,
-
-      source:
-        form.source,
-
-      question:
-        form.question,
-
-      type: form.type,
-
-      priority:
-        form.priority,
-
-      reason:
-        form.reason,
-
-      approach:
-        form.approach,
-
-      status: "Open",
-
-      revision_count: 0
-    };
-
-    const { data, error } =
-      await supabase
-        .from("mistakes")
-        .insert([
-          newMistake
-        ])
-        .select();
-
-    console.log(data);
-    console.log(error);
-
-    if (!error) {
-      loadMistakes();
-
-      setForm({
-        subject: "QA",
-        topic: "",
-        source: "",
-        question: "",
-        type:
-          "Conceptual Error",
+      const newMistake = {
+        user_id: user.id,
+        subject:
+          form.subject,
+        topic: form.topic,
+        source:
+          form.source,
+        question:
+          form.question,
+        type: form.type,
         priority:
-          "Medium",
-        reason: "",
-        approach: ""
-      });
+          form.priority,
+        reason:
+          form.reason,
+        approach:
+          form.approach,
+        status: "Open",
+        revision_count: 0
+      };
+
+      const { data, error } =
+        await supabase
+          .from("mistakes")
+          .insert([newMistake])
+          .select();
+
+      if (!error && data) {
+        setMistakes([
+          {
+            ...data[0],
+            revisionCount:
+              data[0].revision_count || 0
+          },
+          ...mistakes
+        ]);
+
+        setForm({
+          subject: "QA",
+          topic: "",
+          source: "",
+          question: "",
+          type:
+            "Conceptual Error",
+          priority:
+            "Medium",
+          reason: "",
+          approach: ""
+        });
+      }
+    } catch (err) {
+      console.error("Error adding mistake:", err);
     }
   };
 
   const toggleStatus =
     async (id) => {
-      const current =
-        mistakes.find(
-          (m) =>
-            m.id === id
-        );
-
-      const newStatus =
-        current.status ===
-        "Open"
-          ? "Fixed"
-          : "Open";
-
-      const { error } =
-        await supabase
-          .from(
-            "mistakes"
-          )
-          .update({
-            status:
-              newStatus
-          })
-          .eq("id", id);
-
-      if (!error) {
-        setMistakes(
-          mistakes.map(
+      try {
+        const current =
+          mistakes.find(
             (m) =>
               m.id === id
-                ? {
-                    ...m,
-                    status:
-                      newStatus
-                  }
-                : m
-          )
-        );
+          );
+
+        const newStatus =
+          current.status ===
+          "Open"
+            ? "Fixed"
+            : "Open";
+
+        const { error } =
+          await supabase
+            .from(
+              "mistakes"
+            )
+            .update({
+              status:
+                newStatus
+            })
+            .eq("id", id);
+
+        if (!error) {
+          setMistakes(
+            mistakes.map(
+              (m) =>
+                m.id === id
+                  ? {
+                      ...m,
+                      status:
+                        newStatus
+                    }
+                  : m
+            )
+          );
+        }
+      } catch (err) {
+        console.error("Error toggling status:", err);
       }
     };
 
   const increaseRevision =
     async (id) => {
-      const current =
-        mistakes.find(
-          (m) =>
-            m.id === id
-        );
-
-      const newCount =
-        current.revisionCount +
-        1;
-
-      const { error } =
-        await supabase
-          .from(
-            "mistakes"
-          )
-          .update({
-            revision_count:
-              newCount
-          })
-          .eq("id", id);
-
-      if (!error) {
-        setMistakes(
-          mistakes.map(
+      try {
+        const current =
+          mistakes.find(
             (m) =>
               m.id === id
-                ? {
-                    ...m,
-                    revisionCount:
-                      newCount
-                  }
-                : m
-          )
-        );
+          );
+
+        const newCount =
+          current.revisionCount +
+          1;
+
+        const { error } =
+          await supabase
+            .from(
+              "mistakes"
+            )
+            .update({
+              revision_count:
+                newCount
+            })
+            .eq("id", id);
+
+        if (!error) {
+          setMistakes(
+            mistakes.map(
+              (m) =>
+                m.id === id
+                  ? {
+                      ...m,
+                      revisionCount:
+                        newCount
+                    }
+                  : m
+            )
+          );
+        }
+      } catch (err) {
+        console.error("Error increasing revision:", err);
       }
     };
 
   const deleteMistake =
     async (id) => {
-      const { error } =
-        await supabase
-          .from(
-            "mistakes"
-          )
-          .delete()
-          .eq("id", id);
+      try {
+        const { error } =
+          await supabase
+            .from(
+              "mistakes"
+            )
+            .delete()
+            .eq("id", id);
 
-      if (!error) {
-        setMistakes(
-          mistakes.filter(
-            (m) =>
-              m.id !== id
-          )
-        );
+        if (!error) {
+          setMistakes(
+            mistakes.filter(
+              (m) =>
+                m.id !== id
+            )
+          );
+        }
+      } catch (err) {
+        console.error("Error deleting mistake:", err);
       }
     };
 

@@ -48,22 +48,34 @@ function DILR() {
   }, [types]);
 
   const loadSets = async () => {
-    const { data, error } =
-      await supabase
-        .from("dilr_sets")
-        .select("*")
-        .order("created_at", {
-          ascending: false
-        });
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    console.log(data);
-    console.log(error);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    if (!error) {
-      setSets(data || []);
+      const { data, error } =
+        await supabase
+          .from("dilr_sets")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (!error) {
+        setSets(data || []);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error("Error loading sets:", err);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const analytics = useMemo(() => {
@@ -143,67 +155,81 @@ function DILR() {
     if (!form.name.trim())
       return;
 
-    const newSet = {
-      name: form.name,
-      type: form.type,
-      difficulty:
-        form.difficulty,
-      source: form.source,
-      time_taken: Number(
-        form.timeTaken || 0
-      ),
-      accuracy: Number(
-        form.accuracy || 0
-      ),
-      solved: true,
-      notes: form.notes
-    };
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    const { data, error } =
-      await supabase
-        .from("dilr_sets")
-        .insert([newSet])
-        .select();
+      if (!user) return;
 
-    console.log(data);
-    console.log(error);
+      const newSet = {
+        user_id: user.id,
 
-    if (!error && data) {
-      setSets([
-        data[0],
-        ...sets
-      ]);
+        name: form.name,
+        type: form.type,
+        difficulty: form.difficulty,
+        source: form.source,
 
-      setForm({
-        name: "",
-        type: types[0],
-        difficulty:
-          "Medium",
-        source: "",
-        timeTaken: "",
-        accuracy: "",
+        time_taken: Number(
+          form.timeTaken || 0
+        ),
+
+        accuracy: Number(
+          form.accuracy || 0
+        ),
+
         solved: true,
-        notes: ""
-      });
+        notes: form.notes
+      };
+
+      const { data, error } =
+        await supabase
+          .from("dilr_sets")
+          .insert([newSet])
+          .select();
+
+      if (!error && data) {
+        setSets([
+          data[0],
+          ...sets
+        ]);
+
+        setForm({
+          name: "",
+          type: types[0],
+          difficulty: "Medium",
+          source: "",
+          timeTaken: "",
+          accuracy: "",
+          solved: true,
+          notes: ""
+        });
+      }
+    } catch (err) {
+      console.error("Error adding set:", err);
     }
   };
 
   const deleteSet = async (
     id
   ) => {
-    const { error } =
-      await supabase
-        .from("dilr_sets")
-        .delete()
-        .eq("id", id);
+    try {
+      const { error } =
+        await supabase
+          .from("dilr_sets")
+          .delete()
+          .eq("id", id);
 
-    if (!error) {
-      setSets(
-        sets.filter(
-          (set) =>
-            set.id !== id
-        )
-      );
+      if (!error) {
+        setSets(
+          sets.filter(
+            (set) =>
+              set.id !== id
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Error deleting set:", err);
     }
   };
 
@@ -293,6 +319,7 @@ function DILR() {
         </div>
 
       </div>
+
       <div className="type-manager">
 
         <h3>

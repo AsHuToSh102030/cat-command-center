@@ -28,14 +28,25 @@ function Settings() {
 
   const loadSettings = async () => {
     try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       const { data, error } =
         await supabase
           .from("settings")
           .select("*")
+          .eq("user_id", user.id)
           .limit(1);
 
       if (error) {
         console.error(error);
+        setLoading(false);
         return;
       }
 
@@ -66,11 +77,13 @@ function Settings() {
         );
       } else {
         const {
-          data: newData
+          data: newData,
+          error: insertError
         } = await supabase
           .from("settings")
           .insert([
             {
+              user_id: user.id,
               cat_exam_date:
                 "2026-11-29",
               target_percentile:
@@ -82,17 +95,43 @@ function Settings() {
           .select();
 
         if (
+          insertError
+        ) {
+          console.error(
+            insertError
+          );
+        } else if (
           newData &&
           newData.length > 0
         ) {
           setSettingsId(
             newData[0].id
           );
+
+          setCatDate(
+            newData[0]
+              .cat_exam_date
+          );
+
+          setTargetPercentile(
+            String(
+              newData[0]
+                .target_percentile
+            )
+          );
+
+          setDailyStudyHours(
+            String(
+              newData[0]
+                .daily_study_hours
+            )
+          );
         }
       }
+
+      setLoading(false);
     } catch (err) {
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
@@ -102,34 +141,41 @@ function Settings() {
       if (!settingsId)
         return;
 
-      const { error } =
-        await supabase
-          .from("settings")
-          .update({
-            cat_exam_date:
-              catDate,
-            target_percentile:
-              Number(
-                targetPercentile
-              ),
-            daily_study_hours:
-              Number(
-                dailyStudyHours
-              )
-          })
-          .eq(
-            "id",
-            settingsId
-          );
+      try {
+        const { error } =
+          await supabase
+            .from("settings")
+            .update({
+              cat_exam_date:
+                catDate,
+              target_percentile:
+                Number(
+                  targetPercentile
+                ),
+              daily_study_hours:
+                Number(
+                  dailyStudyHours
+                )
+            })
+            .eq(
+              "id",
+              settingsId
+            );
 
-      if (error) {
-        console.error(error);
+        if (error) {
+          console.error(error);
+          alert(
+            "Failed to save settings"
+          );
+        } else {
+          alert(
+            "Settings saved successfully"
+          );
+        }
+      } catch (err) {
+        console.error(err);
         alert(
           "Failed to save settings"
-        );
-      } else {
-        alert(
-          "Settings saved successfully"
         );
       }
     };
@@ -145,38 +191,49 @@ function Settings() {
         return;
 
       try {
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          alert(
+            "User not authenticated"
+          );
+          return;
+        }
+
         await Promise.all([
           supabase
             .from("mocks")
             .delete()
-            .neq("id", 0),
+            .eq("user_id", user.id),
 
           supabase
             .from("mistakes")
             .delete()
-            .neq("id", 0),
+            .eq("user_id", user.id),
 
           supabase
             .from("revisions")
             .delete()
-            .neq("id", 0),
+            .eq("user_id", user.id),
 
           supabase
             .from("varc_sets")
             .delete()
-            .neq("id", 0),
+            .eq("user_id", user.id),
 
           supabase
             .from("dilr_sets")
             .delete()
-            .neq("id", 0),
+            .eq("user_id", user.id),
 
           supabase
             .from(
               "study_sessions"
             )
             .delete()
-            .neq("id", 0)
+            .eq("user_id", user.id)
         ]);
 
         alert(
@@ -186,6 +243,9 @@ function Settings() {
         window.location.reload();
       } catch (err) {
         console.error(err);
+        alert(
+          "Failed to reset data"
+        );
       }
     };
 
@@ -202,7 +262,9 @@ function Settings() {
   if (loading) {
     return (
       <div className="settings-page">
-        <h1>Loading...</h1>
+        <h1>
+          Loading...
+        </h1>
       </div>
     );
   }
@@ -289,6 +351,7 @@ function Settings() {
             <span>
               Days Left
             </span>
+
             <strong>
               {daysLeft}
             </strong>
@@ -298,6 +361,7 @@ function Settings() {
             <span>
               Target Percentile
             </span>
+
             <strong>
               {
                 targetPercentile
@@ -309,6 +373,7 @@ function Settings() {
             <span>
               Daily Goal
             </span>
+
             <strong>
               {
                 dailyStudyHours

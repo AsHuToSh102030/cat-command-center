@@ -45,21 +45,34 @@ function VARC() {
   }, [customTypes]);
 
   const loadSets = async () => {
-    const { data, error } = await supabase
-      .from("varc_sets")
-      .select("*")
-      .order("created_at", {
-        ascending: false
-      });
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    console.log("VARC DATA:", data);
-    console.log("VARC ERROR:", error);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    if (!error) {
-      setSets(data || []);
+      const { data, error } =
+        await supabase
+          .from("varc_sets")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (!error) {
+        setSets(data || []);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const analytics = useMemo(() => {
@@ -121,86 +134,98 @@ function VARC() {
   const addSet = async () => {
     if (!form.name) return;
 
-    const correct =
-      Number(form.correct || 0);
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    const incorrect =
-      Number(form.incorrect || 0);
+      if (!user) return;
 
-    const attempts =
-      correct + incorrect;
+      const correct =
+        Number(form.correct || 0);
 
-    const accuracy =
-      attempts === 0
-        ? 0
-        : Math.round(
-            (correct / attempts) * 100
-          );
+      const incorrect =
+        Number(form.incorrect || 0);
 
-    const newSet = {
-      name: form.name,
-      type: form.type,
-      difficulty: form.difficulty,
-      questions: Number(
-        form.questions || 0
-      ),
-      correct,
-      incorrect,
-      accuracy,
-      time_taken: Number(
-        form.timeTaken || 0
-      ),
-      source: form.source,
-      notes: form.notes
-    };
+      const attempts =
+        correct + incorrect;
 
-    const { data, error } =
-      await supabase
-        .from("varc_sets")
-        .insert([newSet])
-        .select();
+      const accuracy =
+        attempts === 0
+          ? 0
+          : Math.round(
+              (correct / attempts) * 100
+            );
 
-    console.log(data);
-    console.log(error);
+      const newSet = {
+        user_id: user.id,
+        name: form.name,
+        type: form.type,
+        difficulty: form.difficulty,
+        questions: Number(
+          form.questions || 0
+        ),
+        correct,
+        incorrect,
+        accuracy,
+        time_taken: Number(
+          form.timeTaken || 0
+        ),
+        source: form.source,
+        notes: form.notes
+      };
 
-    if (!error && data) {
-      setSets([
-        data[0],
-        ...sets
-      ]);
+      const { data, error } =
+        await supabase
+          .from("varc_sets")
+          .insert([newSet])
+          .select();
 
-      setForm({
-        name: "",
-        type:
-          "Reading Comprehension",
-        difficulty:
-          "Medium",
-        questions: "",
-        correct: "",
-        incorrect: "",
-        timeTaken: "",
-        source: "",
-        notes: ""
-      });
+      if (!error && data) {
+        setSets([
+          data[0],
+          ...sets
+        ]);
+
+        setForm({
+          name: "",
+          type:
+            "Reading Comprehension",
+          difficulty:
+            "Medium",
+          questions: "",
+          correct: "",
+          incorrect: "",
+          timeTaken: "",
+          source: "",
+          notes: ""
+        });
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const deleteSet = async (
     id
   ) => {
-    const { error } =
-      await supabase
-        .from("varc_sets")
-        .delete()
-        .eq("id", id);
+    try {
+      const { error } =
+        await supabase
+          .from("varc_sets")
+          .delete()
+          .eq("id", id);
 
-    if (!error) {
-      setSets(
-        sets.filter(
-          (set) =>
-            set.id !== id
-        )
-      );
+      if (!error) {
+        setSets(
+          sets.filter(
+            (set) =>
+              set.id !== id
+          )
+        );
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -208,7 +233,10 @@ function VARC() {
     return (
       <div className="varc-page">
         <h1>📖 VARC Tracker</h1>
-        <h2>Loading...</h2>
+
+        <h2>
+          Loading...
+        </h2>
       </div>
     );
   }
@@ -216,19 +244,27 @@ function VARC() {
   return (
     <div className="varc-page">
 
-      <h1>📖 VARC Tracker</h1>
+      <h1>
+        📖 VARC Tracker
+      </h1>
 
       <div className="analytics-grid">
 
         <div className="analytics-card">
           <h3>Total Sets</h3>
+
           <h2>
-            {analytics.totalSets}
+            {
+              analytics.totalSets
+            }
           </h2>
         </div>
 
         <div className="analytics-card">
-          <h3>Average Accuracy</h3>
+          <h3>
+            Average Accuracy
+          </h3>
+
           <h2>
             {
               analytics.averageAccuracy
@@ -238,22 +274,33 @@ function VARC() {
         </div>
 
         <div className="analytics-card">
-          <h3>Average Time</h3>
+          <h3>
+            Average Time
+          </h3>
+
           <h2>
-            {analytics.averageTime}
+            {
+              analytics.averageTime
+            }
             min
           </h2>
         </div>
 
         <div className="analytics-card">
-          <h3>Best Accuracy</h3>
+          <h3>
+            Best Accuracy
+          </h3>
+
           <h2>
-            {analytics.bestAccuracy}
+            {
+              analytics.bestAccuracy
+            }
             %
           </h2>
         </div>
 
       </div>
+
       <div className="custom-type-box">
 
         <input
@@ -321,7 +368,9 @@ function VARC() {
           }
         >
           <option>Easy</option>
+
           <option>Medium</option>
+
           <option>Hard</option>
         </select>
 
@@ -413,7 +462,9 @@ function VARC() {
             className="set-card"
           >
 
-            <h2>{set.name}</h2>
+            <h2>
+              {set.name}
+            </h2>
 
             <p>
               📚 {set.type}
@@ -428,14 +479,18 @@ function VARC() {
             <p>
               ⏱ Time:
               {" "}
-              {set.time_taken}
+              {
+                set.time_taken
+              }
               min
             </p>
 
             <p>
               🔥 Difficulty:
               {" "}
-              {set.difficulty}
+              {
+                set.difficulty
+              }
             </p>
 
             <p>
@@ -451,7 +506,9 @@ function VARC() {
             <button
               className="delete-btn"
               onClick={() =>
-                deleteSet(set.id)
+                deleteSet(
+                  set.id
+                )
               }
             >
               Delete
