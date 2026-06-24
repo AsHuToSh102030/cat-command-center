@@ -1,77 +1,126 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./Goals.css";
 
 function Goals() {
-  const [goals, setGoals] = useState(() => {
-    const saved = localStorage.getItem("catGoals");
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return [];
-  });
-
+  const [goals, setGoals] = useState([]);
   const [goal, setGoal] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem(
-      "catGoals",
-      JSON.stringify(goals)
-    );
-  }, [goals]);
+    loadGoals();
+  }, []);
 
-  const addGoal = () => {
+  const loadGoals = async () => {
+    const { data, error } = await supabase
+      .from("goals")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+    if (!error) {
+      setGoals(data || []);
+    }
+
+    setLoading(false);
+  };
+
+  const addGoal = async () => {
     if (!goal.trim()) return;
 
-    setGoals([
-      {
-        id: Date.now(),
-        text: goal,
-        completed: false
-      },
-      ...goals
-    ]);
+    const newGoal = {
+      id: Date.now(),
+      text: goal,
+      completed: false
+    };
 
-    setGoal("");
+    const { data, error } = await supabase
+      .from("goals")
+      .insert([newGoal])
+      .select();
+
+    if (!error) {
+      setGoals([
+        data[0],
+        ...goals
+      ]);
+
+      setGoal("");
+    }
   };
 
-  const toggleGoal = (id) => {
-    setGoals(
-      goals.map((goal) =>
-        goal.id === id
-          ? {
-              ...goal,
-              completed:
-                !goal.completed
-            }
-          : goal
-      )
+  const toggleGoal = async (id) => {
+    const currentGoal = goals.find(
+      (goal) => goal.id === id
     );
+
+    if (!currentGoal) return;
+
+    const updatedValue =
+      !currentGoal.completed;
+
+    const { error } = await supabase
+      .from("goals")
+      .update({
+        completed: updatedValue
+      })
+      .eq("id", id);
+
+    if (!error) {
+      setGoals(
+        goals.map((goal) =>
+          goal.id === id
+            ? {
+                ...goal,
+                completed:
+                  updatedValue
+              }
+            : goal
+        )
+      );
+    }
   };
 
-  const deleteGoal = (id) => {
-    setGoals(
-      goals.filter(
-        (goal) => goal.id !== id
-      )
-    );
+  const deleteGoal = async (id) => {
+    const { error } = await supabase
+      .from("goals")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      setGoals(
+        goals.filter(
+          (goal) => goal.id !== id
+        )
+      );
+    }
   };
 
   const stats = useMemo(() => {
     return {
       total: goals.length,
-      completed: goals.filter(
-        (goal) =>
-          goal.completed
-      ).length
+      completed:
+        goals.filter(
+          (goal) =>
+            goal.completed
+        ).length
     };
   }, [goals]);
+
+  if (loading) {
+    return (
+      <div className="goals-page">
+        <h1>🎯 Goals Tracker</h1>
+        <h2>Loading...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="goals-page">
 
-      <h1>Goals Tracker</h1>
+      <h1>🎯 Goals Tracker</h1>
 
       <div className="stats-grid">
 
@@ -82,9 +131,7 @@ function Goals() {
 
         <div className="stat-card">
           <h3>Completed</h3>
-          <h2>
-            {stats.completed}
-          </h2>
+          <h2>{stats.completed}</h2>
         </div>
 
       </div>
@@ -111,6 +158,15 @@ function Goals() {
 
       <div className="goal-list">
 
+        {goals.length === 0 && (
+          <div className="goal-card">
+            <h3>No Goals Yet</h3>
+            <p>
+              Add your first CAT goal.
+            </p>
+          </div>
+        )}
+
         {goals.map((goal) => (
           <div
             key={goal.id}
@@ -125,8 +181,8 @@ function Goals() {
               Status:
               {" "}
               {goal.completed
-                ? "Completed"
-                : "Pending"}
+                ? "✅ Completed"
+                : "⏳ Pending"}
             </p>
 
             <div className="goal-actions">

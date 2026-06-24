@@ -1,85 +1,189 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./Revision.css";
 
 function Revision() {
-  const [revisions, setRevisions] = useState(() => {
-    const saved = localStorage.getItem(
-      "revisionQueue"
-    );
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return [];
-  });
+  const [revisions, setRevisions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
     topic: "",
     type: "Topic Revision",
+    priority: "Medium",
     revisionDate: ""
   });
 
   useEffect(() => {
-    localStorage.setItem(
-      "revisionQueue",
-      JSON.stringify(revisions)
-    );
+    fetchRevisions();
+  }, []);
+
+  const fetchRevisions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("revisions")
+        .select("*")
+        .order("created_at", {
+          ascending: false
+        });
+
+      if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+      }
+
+      setRevisions(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const analytics = useMemo(() => {
+    const today =
+      new Date()
+        .toISOString()
+        .split("T")[0];
+
+    return {
+      dueToday: revisions.filter(
+        (item) =>
+          item.revision_date === today &&
+          item.status === "Pending"
+      ).length,
+
+      overdue: revisions.filter(
+        (item) =>
+          item.revision_date < today &&
+          item.status === "Pending"
+      ).length,
+
+      completed: revisions.filter(
+        (item) =>
+          item.status === "Completed"
+      ).length,
+
+      pending: revisions.filter(
+        (item) =>
+          item.status === "Pending"
+      ).length
+    };
   }, [revisions]);
 
-  const addRevision = () => {
-    if (
-      !form.topic ||
-      !form.revisionDate
-    ) {
+  const addRevision = async () => {
+    if (!form.topic.trim()) {
+      alert("Enter topic");
       return;
     }
 
-    const item = {
-      id: Date.now(),
-      topic: form.topic,
-      type: form.type,
-      createdDate:
-        new Date()
-          .toISOString()
-          .split("T")[0],
-      revisionDate:
-        form.revisionDate,
-      status: "Pending"
-    };
+    if (!form.revisionDate) {
+      alert("Select revision date");
+      return;
+    }
 
-    setRevisions([
-      item,
-      ...revisions
-    ]);
+    try {
+      const revisionData = {
+        topic: form.topic,
+        type: form.type,
+        priority: form.priority,
+        created_date:
+          new Date()
+            .toISOString()
+            .split("T")[0],
+        revision_date:
+          form.revisionDate,
+        status: "Pending"
+      };
 
-    setForm({
-      topic: "",
-      type: "Topic Revision",
-      revisionDate: ""
-    });
+      const { data, error } =
+        await supabase
+          .from("revisions")
+          .insert([revisionData])
+          .select();
+
+      if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+      }
+
+      setRevisions([
+        data[0],
+        ...revisions
+      ]);
+
+      setForm({
+        topic: "",
+        type: "Topic Revision",
+        priority: "Medium",
+        revisionDate: ""
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to add revision");
+    }
   };
 
-  const toggleStatus = (id) => {
+  const toggleStatus = async (
+    id
+  ) => {
+    const current =
+      revisions.find(
+        (item) =>
+          item.id === id
+      );
+
+    if (!current) return;
+
+    const newStatus =
+      current.status ===
+      "Pending"
+        ? "Completed"
+        : "Pending";
+
+    const { error } =
+      await supabase
+        .from("revisions")
+        .update({
+          status: newStatus
+        })
+        .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      alert(error.message);
+      return;
+    }
+
     setRevisions(
       revisions.map((item) =>
         item.id === id
           ? {
               ...item,
               status:
-                item.status ===
-                "Pending"
-                  ? "Completed"
-                  : "Pending"
+                newStatus
             }
           : item
       )
     );
   };
 
-  const deleteRevision = (
+  const deleteRevision = async (
     id
   ) => {
+    const { error } =
+      await supabase
+        .from("revisions")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      alert(error.message);
+      return;
+    }
+
     setRevisions(
       revisions.filter(
         (item) =>
@@ -88,56 +192,49 @@ function Revision() {
     );
   };
 
-  const today =
-    new Date()
-      .toISOString()
-      .split("T")[0];
-
-  const dueToday =
-    revisions.filter(
-      (item) =>
-        item.revisionDate ===
-          today &&
-        item.status ===
-          "Pending"
-    ).length;
-
-  const overdue =
-    revisions.filter(
-      (item) =>
-        item.revisionDate <
-          today &&
-        item.status ===
-          "Pending"
-    ).length;
-
-  const completed =
-    revisions.filter(
-      (item) =>
-        item.status ===
-        "Completed"
-    ).length;
+  if (loading) {
+    return (
+      <div className="revision-page">
+        <h2>Loading...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="revision-page">
 
-      <h1>Revision Queue</h1>
+      <h1>
+        🔄 Revision Queue
+      </h1>
 
-      <div className="revision-stats">
+      <div className="analytics-grid">
 
-        <div className="stat-card">
+        <div className="analytics-card">
           <h3>Due Today</h3>
-          <h2>{dueToday}</h2>
+          <h2>
+            {analytics.dueToday}
+          </h2>
         </div>
 
-        <div className="stat-card">
+        <div className="analytics-card">
           <h3>Overdue</h3>
-          <h2>{overdue}</h2>
+          <h2>
+            {analytics.overdue}
+          </h2>
         </div>
 
-        <div className="stat-card">
+        <div className="analytics-card">
+          <h3>Pending</h3>
+          <h2>
+            {analytics.pending}
+          </h2>
+        </div>
+
+        <div className="analytics-card">
           <h3>Completed</h3>
-          <h2>{completed}</h2>
+          <h2>
+            {analytics.completed}
+          </h2>
         </div>
 
       </div>
@@ -177,7 +274,29 @@ function Revision() {
           <option>
             Mistake Revision
           </option>
+        </select>
 
+        <select
+          value={form.priority}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              priority:
+                e.target.value
+            })
+          }
+        >
+          <option>
+            Low
+          </option>
+
+          <option>
+            Medium
+          </option>
+
+          <option>
+            High
+          </option>
         </select>
 
         <input
@@ -213,35 +332,32 @@ function Revision() {
               className="revision-card"
             >
 
-              <h3>
+              <h2>
                 {item.topic}
-              </h3>
+              </h2>
 
               <p>
-                Type:
-                {" "}
+                📚 Type:{" "}
                 {item.type}
               </p>
 
               <p>
-                Created:
-                {" "}
-                {
-                  item.createdDate
-                }
+                🎯 Priority:{" "}
+                {item.priority}
               </p>
 
               <p>
-                Revision:
-                {" "}
-                {
-                  item.revisionDate
-                }
+                📅 Created:{" "}
+                {item.created_date}
               </p>
 
               <p>
-                Status:
-                {" "}
+                ⏰ Revision:{" "}
+                {item.revision_date}
+              </p>
+
+              <p>
+                Status:{" "}
                 {item.status}
               </p>
 
@@ -254,8 +370,7 @@ function Revision() {
                     )
                   }
                 >
-                  Toggle
-                  Status
+                  Toggle Status
                 </button>
 
                 <button

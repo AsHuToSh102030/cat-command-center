@@ -1,102 +1,318 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./Mistakes.css";
 
 function Mistakes() {
-  const [mistakes, setMistakes] = useState(() => {
-    const saved = localStorage.getItem(
-      "mistakeLog"
-    );
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return [];
-  });
+  const [mistakes, setMistakes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
+    subject: "QA",
     topic: "",
     source: "",
     question: "",
-    type: "",
+    type: "Conceptual Error",
+    priority: "Medium",
     reason: "",
     approach: ""
   });
 
   useEffect(() => {
-    localStorage.setItem(
-      "mistakeLog",
-      JSON.stringify(mistakes)
-    );
+    loadMistakes();
+  }, []);
+
+  const loadMistakes = async () => {
+    const { data, error } =
+      await supabase
+        .from("mistakes")
+        .select("*")
+        .order("created_at", {
+          ascending: false
+        });
+
+    console.log(data);
+    console.log(error);
+
+    if (!error) {
+      setMistakes(
+        (data || []).map(
+          (item) => ({
+            ...item,
+            revisionCount:
+              item.revision_count || 0
+          })
+        )
+      );
+    }
+
+    setLoading(false);
+  };
+
+  const analytics = useMemo(() => {
+    return {
+      total: mistakes.length,
+
+      open: mistakes.filter(
+        (m) =>
+          m.status === "Open"
+      ).length,
+
+      fixed: mistakes.filter(
+        (m) =>
+          m.status === "Fixed"
+      ).length,
+
+      highPriority:
+        mistakes.filter(
+          (m) =>
+            m.priority ===
+            "High"
+        ).length
+    };
   }, [mistakes]);
 
-  const addMistake = () => {
+  const addMistake = async () => {
     if (
       !form.topic ||
-      !form.type
+      !form.reason
     ) {
       return;
     }
 
-    setMistakes([
-      {
-        id: Date.now(),
-        ...form,
-        status: "Open"
-      },
-      ...mistakes
-    ]);
+    const newMistake = {
+      id: Date.now(),
 
-    setForm({
-      topic: "",
-      source: "",
-      question: "",
-      type: "",
-      reason: "",
-      approach: ""
-    });
+      subject:
+        form.subject,
+
+      topic: form.topic,
+
+      source:
+        form.source,
+
+      question:
+        form.question,
+
+      type: form.type,
+
+      priority:
+        form.priority,
+
+      reason:
+        form.reason,
+
+      approach:
+        form.approach,
+
+      status: "Open",
+
+      revision_count: 0
+    };
+
+    const { data, error } =
+      await supabase
+        .from("mistakes")
+        .insert([
+          newMistake
+        ])
+        .select();
+
+    console.log(data);
+    console.log(error);
+
+    if (!error) {
+      loadMistakes();
+
+      setForm({
+        subject: "QA",
+        topic: "",
+        source: "",
+        question: "",
+        type:
+          "Conceptual Error",
+        priority:
+          "Medium",
+        reason: "",
+        approach: ""
+      });
+    }
   };
 
-  const toggleStatus = (id) => {
-    setMistakes(
-      mistakes.map(
-        (mistake) => {
-          if (
-            mistake.id !== id
-          ) {
-            return mistake;
-          }
+  const toggleStatus =
+    async (id) => {
+      const current =
+        mistakes.find(
+          (m) =>
+            m.id === id
+        );
 
-          return {
-            ...mistake,
+      const newStatus =
+        current.status ===
+        "Open"
+          ? "Fixed"
+          : "Open";
+
+      const { error } =
+        await supabase
+          .from(
+            "mistakes"
+          )
+          .update({
             status:
-              mistake.status ===
-              "Open"
-                ? "Fixed"
-                : "Open"
-          };
-        }
-      )
-    );
-  };
+              newStatus
+          })
+          .eq("id", id);
 
-  const deleteMistake = (
-    id
-  ) => {
-    setMistakes(
-      mistakes.filter(
-        (mistake) =>
-          mistake.id !== id
-      )
+      if (!error) {
+        setMistakes(
+          mistakes.map(
+            (m) =>
+              m.id === id
+                ? {
+                    ...m,
+                    status:
+                      newStatus
+                  }
+                : m
+          )
+        );
+      }
+    };
+
+  const increaseRevision =
+    async (id) => {
+      const current =
+        mistakes.find(
+          (m) =>
+            m.id === id
+        );
+
+      const newCount =
+        current.revisionCount +
+        1;
+
+      const { error } =
+        await supabase
+          .from(
+            "mistakes"
+          )
+          .update({
+            revision_count:
+              newCount
+          })
+          .eq("id", id);
+
+      if (!error) {
+        setMistakes(
+          mistakes.map(
+            (m) =>
+              m.id === id
+                ? {
+                    ...m,
+                    revisionCount:
+                      newCount
+                  }
+                : m
+          )
+        );
+      }
+    };
+
+  const deleteMistake =
+    async (id) => {
+      const { error } =
+        await supabase
+          .from(
+            "mistakes"
+          )
+          .delete()
+          .eq("id", id);
+
+      if (!error) {
+        setMistakes(
+          mistakes.filter(
+            (m) =>
+              m.id !== id
+          )
+        );
+      }
+    };
+
+  if (loading) {
+    return (
+      <div className="mistakes-page">
+        <h1>
+          ❌ Mistake Log
+        </h1>
+
+        <h2>
+          Loading...
+        </h2>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="mistakes-page">
 
-      <h1>Mistake Log</h1>
+      <h1>
+        ❌ Mistake Log
+      </h1>
+
+      <div className="analytics-grid">
+
+        <div className="analytics-card">
+          <h3>
+            Total Mistakes
+          </h3>
+          <h2>
+            {analytics.total}
+          </h2>
+        </div>
+
+        <div className="analytics-card">
+          <h3>Open</h3>
+          <h2>
+            {analytics.open}
+          </h2>
+        </div>
+
+        <div className="analytics-card">
+          <h3>Fixed</h3>
+          <h2>
+            {analytics.fixed}
+          </h2>
+        </div>
+
+        <div className="analytics-card">
+          <h3>
+            High Priority
+          </h3>
+          <h2>
+            {
+              analytics.highPriority
+            }
+          </h2>
+        </div>
+
+      </div>
 
       <div className="mistake-form">
+
+        <select
+          value={form.subject}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              subject:
+                e.target.value
+            })
+          }
+        >
+          <option>QA</option>
+          <option>DILR</option>
+          <option>VARC</option>
+        </select>
 
         <input
           placeholder="Topic"
@@ -134,8 +350,7 @@ function Mistakes() {
           }
         />
 
-        <input
-          placeholder="Mistake Type"
+        <select
           value={form.type}
           onChange={(e) =>
             setForm({
@@ -144,7 +359,40 @@ function Mistakes() {
                 e.target.value
             })
           }
-        />
+        >
+          <option>
+            Conceptual Error
+          </option>
+          <option>
+            Calculation Error
+          </option>
+          <option>
+            Reading Error
+          </option>
+          <option>
+            Silly Mistake
+          </option>
+          <option>
+            Time Management
+          </option>
+        </select>
+
+        <select
+          value={form.priority}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              priority:
+                e.target.value
+            })
+          }
+        >
+          <option>Low</option>
+          <option>
+            Medium
+          </option>
+          <option>High</option>
+        </select>
 
         <textarea
           placeholder="Why mistake happened"
@@ -189,36 +437,38 @@ function Mistakes() {
               className="mistake-card"
             >
 
-              <h3>
+              <h2>
                 {
                   mistake.topic
                 }
-              </h3>
+              </h2>
 
               <p>
-                Source:
+                📚 Subject:
                 {" "}
                 {
-                  mistake.source
+                  mistake.subject
                 }
               </p>
 
               <p>
-                Question:
+                ⚠ Type:
                 {" "}
                 {
-                  mistake.question
+                  mistake.type
                 }
               </p>
 
               <p>
-                Type:
+                🎯 Priority:
                 {" "}
-                {mistake.type}
+                {
+                  mistake.priority
+                }
               </p>
 
               <p>
-                Reason:
+                📝 Reason:
                 {" "}
                 {
                   mistake.reason
@@ -226,11 +476,18 @@ function Mistakes() {
               </p>
 
               <p>
-                Correct
-                Approach:
+                ✅ Fix:
                 {" "}
                 {
                   mistake.approach
+                }
+              </p>
+
+              <p>
+                🔄 Revisions:
+                {" "}
+                {
+                  mistake.revisionCount
                 }
               </p>
 
@@ -252,7 +509,16 @@ function Mistakes() {
                   }
                 >
                   Toggle
-                  Status
+                </button>
+
+                <button
+                  onClick={() =>
+                    increaseRevision(
+                      mistake.id
+                    )
+                  }
+                >
+                  + Revision
                 </button>
 
                 <button

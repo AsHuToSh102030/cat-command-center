@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./Mocks.css";
 
 function Mocks() {
-  const [mocks, setMocks] = useState(() => {
-    const saved = localStorage.getItem("mockTests");
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return [];
-  });
+  const [mocks, setMocks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
     name: "",
@@ -18,15 +12,32 @@ function Mocks() {
     score: "",
     percentile: "",
     correct: "",
-    incorrect: ""
+    incorrect: "",
+    strengths: "",
+    weaknesses: "",
+    lessons: ""
   });
 
   useEffect(() => {
-    localStorage.setItem(
-      "mockTests",
-      JSON.stringify(mocks)
-    );
-  }, [mocks]);
+    loadMocks();
+  }, []);
+
+  const loadMocks = async () => {
+    const { data, error } = await supabase
+      .from("mocks")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+    if (error) {
+      console.error(error);
+    } else {
+      setMocks(data || []);
+    }
+
+    setLoading(false);
+  };
 
   const analytics = useMemo(() => {
     if (mocks.length === 0) {
@@ -40,61 +51,54 @@ function Mocks() {
     }
 
     const scores = mocks.map(
-      (mock) => Number(mock.score)
+      (mock) => Number(mock.score || 0)
     );
 
     const percentiles = mocks.map(
       (mock) =>
-        Number(mock.percentile)
+        Number(mock.percentile || 0)
     );
-
-    const averageScore =
-      scores.reduce(
-        (sum, value) =>
-          sum + value,
-        0
-      ) / scores.length;
-
-    const averagePercentile =
-      percentiles.reduce(
-        (sum, value) =>
-          sum + value,
-        0
-      ) / percentiles.length;
 
     return {
       totalMocks: mocks.length,
+
       bestScore: Math.max(
         ...scores
       ),
+
       bestPercentile: Math.max(
         ...percentiles
       ),
-      averageScore:
-        Math.round(
-          averageScore * 10
-        ) / 10,
+
+      averageScore: Math.round(
+        scores.reduce(
+          (sum, score) =>
+            sum + score,
+          0
+        ) / scores.length
+      ),
+
       averagePercentile:
         Math.round(
-          averagePercentile *
-            10
-        ) / 10
+          percentiles.reduce(
+            (sum, p) => sum + p,
+            0
+          ) / percentiles.length
+        )
     };
   }, [mocks]);
 
-  const addMock = () => {
-    if (
-      !form.name ||
-      !form.date
-    ) {
+  const addMock = async () => {
+    if (!form.name || !form.date)
       return;
-    }
 
     const correct =
-      Number(form.correct);
+      Number(form.correct || 0);
 
     const incorrect =
-      Number(form.incorrect);
+      Number(
+        form.incorrect || 0
+      );
 
     const attempts =
       correct + incorrect;
@@ -110,39 +114,108 @@ function Mocks() {
 
     const newMock = {
       id: Date.now(),
-      ...form,
+
+      name: form.name,
+      date: form.date,
+
+      score: Number(
+        form.score || 0
+      ),
+
+      percentile: Number(
+        form.percentile || 0
+      ),
+
+      correct,
+      incorrect,
       attempts,
-      accuracy
+      accuracy,
+
+      strengths:
+        form.strengths,
+
+      weaknesses:
+        form.weaknesses,
+
+      lessons:
+        form.lessons
     };
 
-    setMocks([
-      newMock,
-      ...mocks
-    ]);
+    const { data, error } =
+      await supabase
+        .from("mocks")
+        .insert([newMock])
+        .select();
 
-    setForm({
-      name: "",
-      date: "",
-      score: "",
-      percentile: "",
-      correct: "",
-      incorrect: ""
-    });
-  };
-
-  const deleteMock = (id) => {
-    setMocks(
-      mocks.filter(
-        (mock) =>
-          mock.id !== id
-      )
+    console.log(
+      "INSERT DATA:",
+      data
     );
+
+    console.log(
+      "INSERT ERROR:",
+      error
+    );
+
+    if (!error && data) {
+      setMocks([
+        data[0],
+        ...mocks
+      ]);
+
+      setForm({
+        name: "",
+        date: "",
+        score: "",
+        percentile: "",
+        correct: "",
+        incorrect: "",
+        strengths: "",
+        weaknesses: "",
+        lessons: ""
+      });
+    }
   };
+
+  const deleteMock = async (
+    id
+  ) => {
+    const { error } =
+      await supabase
+        .from("mocks")
+        .delete()
+        .eq("id", id);
+
+    if (!error) {
+      setMocks(
+        mocks.filter(
+          (mock) =>
+            mock.id !== id
+        )
+      );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="mocks-page">
+        <h1>
+          🏆 Mock Tracker
+        </h1>
+
+        <h2>
+          Loading...
+        </h2>
+      </div>
+    );
+  }
 
   return (
     <div className="mocks-page">
 
-      <h1>Mock Test Tracker</h1>
+      <h1>
+        🏆 Mock Tracker
+      </h1>
 
       <div className="analytics-grid">
 
@@ -177,7 +250,7 @@ function Mocks() {
 
         <div className="analytics-card">
           <h3>
-            Average Score
+            Avg Score
           </h3>
           <h2>
             {
@@ -188,7 +261,7 @@ function Mocks() {
 
         <div className="analytics-card">
           <h3>
-            Average Percentile
+            Avg Percentile
           </h3>
           <h2>
             {
@@ -252,7 +325,7 @@ function Mocks() {
         />
 
         <input
-          placeholder="Correct"
+          placeholder="Correct Questions"
           value={form.correct}
           onChange={(e) =>
             setForm({
@@ -264,7 +337,7 @@ function Mocks() {
         />
 
         <input
-          placeholder="Incorrect"
+          placeholder="Incorrect Questions"
           value={
             form.incorrect
           }
@@ -272,6 +345,48 @@ function Mocks() {
             setForm({
               ...form,
               incorrect:
+                e.target.value
+            })
+          }
+        />
+
+        <textarea
+          placeholder="Strengths"
+          value={
+            form.strengths
+          }
+          onChange={(e) =>
+            setForm({
+              ...form,
+              strengths:
+                e.target.value
+            })
+          }
+        />
+
+        <textarea
+          placeholder="Weaknesses"
+          value={
+            form.weaknesses
+          }
+          onChange={(e) =>
+            setForm({
+              ...form,
+              weaknesses:
+                e.target.value
+            })
+          }
+        />
+
+        <textarea
+          placeholder="Lessons Learned"
+          value={
+            form.lessons
+          }
+          onChange={(e) =>
+            setForm({
+              ...form,
+              lessons:
                 e.target.value
             })
           }
@@ -293,38 +408,48 @@ function Mocks() {
             className="mock-card"
           >
 
-            <h3>{mock.name}</h3>
+            <h2>
+              {mock.name}
+            </h2>
 
             <p>
-              Date:
-              {" "}
-              {mock.date}
+              📅 {mock.date}
             </p>
 
             <p>
-              Score:
+              🎯 Score:
               {" "}
               {mock.score}
             </p>
 
             <p>
-              Percentile:
+              🏆 Percentile:
               {" "}
-              {
-                mock.percentile
-              }
+              {mock.percentile}
             </p>
 
             <p>
-              Attempts:
-              {" "}
-              {mock.attempts}
-            </p>
-
-            <p>
-              Accuracy:
+              ✅ Accuracy:
               {" "}
               {mock.accuracy}%
+            </p>
+
+            <p>
+              💪 Strengths:
+              {" "}
+              {mock.strengths}
+            </p>
+
+            <p>
+              ⚠️ Weaknesses:
+              {" "}
+              {mock.weaknesses}
+            </p>
+
+            <p>
+              📘 Lessons:
+              {" "}
+              {mock.lessons}
             </p>
 
             <button

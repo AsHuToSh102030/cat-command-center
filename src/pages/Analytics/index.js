@@ -1,26 +1,86 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./Analytics.css";
 
 function Analytics() {
-  const modules = JSON.parse(
-    localStorage.getItem("moduleTracker") || "[]"
-  );
+  const [modules, setModules] = useState([]);
+  const [mocks, setMocks] = useState([]);
+  const [mistakes, setMistakes] = useState([]);
+  const [revisions, setRevisions] = useState([]);
+  const [varcSets, setVarcSets] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const mocks = JSON.parse(
-    localStorage.getItem("mockTests") || "[]"
-  );
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
 
-  const mistakes = JSON.parse(
-    localStorage.getItem("mistakeLog") || "[]"
-  );
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true);
 
-  const revisions = JSON.parse(
-    localStorage.getItem("revisionQueue") || "[]"
-  );
+      const [
+        modulesRes,
+        mocksRes,
+        mistakesRes,
+        revisionsRes,
+        varcRes
+      ] = await Promise.all([
+        supabase
+          .from("modules")
+          .select("*")
+          .limit(1),
 
-  const varcSets = JSON.parse(
-    localStorage.getItem("varcSets") || "[]"
-  );
+        supabase
+          .from("mocks")
+          .select("*"),
+
+        supabase
+          .from("mistakes")
+          .select("*"),
+
+        supabase
+          .from("revisions")
+          .select("*"),
+
+        supabase
+          .from("varc_sets")
+          .select("*")
+      ]);
+
+      if (
+        modulesRes.data &&
+        modulesRes.data.length > 0
+      ) {
+        setModules(
+          modulesRes.data[0]
+            .module_data || []
+        );
+      }
+
+      setMocks(
+        mocksRes.data || []
+      );
+
+      setMistakes(
+        mistakesRes.data || []
+      );
+
+      setRevisions(
+        revisionsRes.data || []
+      );
+
+      setVarcSets(
+        varcRes.data || []
+      );
+    } catch (error) {
+      console.error(
+        "Analytics Error:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const analytics = useMemo(() => {
     let totalTopics = 0;
@@ -32,9 +92,9 @@ function Analytics() {
 
     modules.forEach((module) => {
       const allTopics = [
-        ...module.qa,
-        ...module.dilr,
-        ...module.varc
+        ...(module.qa || []),
+        ...(module.dilr || []),
+        ...(module.varc || [])
       ];
 
       totalTopics += allTopics.length;
@@ -58,23 +118,31 @@ function Analytics() {
           ).length;
 
         const progress = Math.round(
-          (completed / fields.length) * 100
+          (completed /
+            fields.length) *
+            100
         );
 
         totalProgress += progress;
 
-        if (progress === 100) {
+        if (
+          progress === 100
+        ) {
           completedTopics++;
         }
 
-        if (progress <= 40) {
+        if (
+          progress <= 40
+        ) {
           weakTopics.push({
             name: topic.name,
             progress
           });
         }
 
-        if (progress === 100) {
+        if (
+          progress === 100
+        ) {
           strongTopics.push({
             name: topic.name,
             progress
@@ -84,18 +152,26 @@ function Analytics() {
     });
 
     weakTopics.sort(
-      (a, b) => a.progress - b.progress
+      (a, b) =>
+        a.progress -
+        b.progress
     );
 
     strongTopics.sort(
-      (a, b) => b.progress - a.progress
+      (a, b) =>
+        b.progress -
+        a.progress
     );
 
     return {
       totalTopics,
+
       completedTopics,
+
       pendingTopics:
-        totalTopics - completedTopics,
+        totalTopics -
+        completedTopics,
+
       overallProgress:
         totalTopics === 0
           ? 0
@@ -103,30 +179,40 @@ function Analytics() {
               totalProgress /
                 totalTopics
             ),
-      totalMocks: mocks.length,
+
+      totalMocks:
+        mocks.length,
+
       totalMistakes:
         mistakes.length,
+
       openMistakes:
         mistakes.filter(
           (m) =>
-            m.status === "Open"
+            m.status ===
+            "Open"
         ).length,
+
       completedRevisions:
         revisions.filter(
           (r) =>
             r.status ===
             "Completed"
         ).length,
+
       pendingRevisions:
         revisions.filter(
           (r) =>
             r.status ===
             "Pending"
         ).length,
+
       totalVarcSets:
         varcSets.length,
+
       weakTopics:
         weakTopics.slice(0, 5),
+
       strongTopics:
         strongTopics.slice(0, 5)
     };
@@ -137,6 +223,15 @@ function Analytics() {
     revisions,
     varcSets
   ]);
+
+  if (loading) {
+    return (
+      <div className="analytics-page">
+        <h1>Analytics Center</h1>
+        <h2>Loading...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="analytics-page">
@@ -231,8 +326,9 @@ function Analytics() {
             Weakest Topics
           </h2>
 
-          {analytics.weakTopics.length ===
-          0 ? (
+          {analytics
+            .weakTopics
+            .length === 0 ? (
             <p>
               No weak topics yet
             </p>

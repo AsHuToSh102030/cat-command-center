@@ -1,38 +1,95 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import "./Dashboard.css";
 
 function Dashboard() {
-  const catDate =
-    localStorage.getItem(
-      "catExamDate"
-    ) || "2026-11-29";
+  const [modules, setModules] = useState([]);
+  const [mocks, setMocks] = useState([]);
+  const [mistakes, setMistakes] = useState([]);
+  const [revisions, setRevisions] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const targetPercentile =
-    localStorage.getItem(
-      "targetPercentile"
-    ) || "99";
+  useEffect(() => {
+    loadDashboard();
+  }, []);
 
-  const studyHours =
-    localStorage.getItem(
-      "dailyStudyHours"
-    ) || "4";
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
 
-  const modules = JSON.parse(
-    localStorage.getItem(
-      "moduleTracker"
-    ) || "[]"
-  );
+      const [
+        modulesRes,
+        mocksRes,
+        mistakesRes,
+        revisionsRes,
+        settingsRes
+      ] = await Promise.all([
+        supabase
+          .from("modules")
+          .select("*")
+          .limit(1),
 
-  const revisionQueue = JSON.parse(
-    localStorage.getItem(
-      "revisionQueue"
-    ) || "[]"
-  );
+        supabase
+          .from("mocks")
+          .select("*")
+          .order("created_at", {
+            ascending: false
+          }),
 
-  const studySessions = JSON.parse(
-    localStorage.getItem(
-      "studySessions"
-    ) || "[]"
-  );
+        supabase
+          .from("mistakes")
+          .select("*"),
+
+        supabase
+          .from("revisions")
+          .select("*"),
+
+        supabase
+          .from("settings")
+          .select("*")
+          .limit(1)
+      ]);
+
+      if (
+        modulesRes.data &&
+        modulesRes.data.length > 0
+      ) {
+        setModules(
+          modulesRes.data[0]
+            .module_data || []
+        );
+      }
+
+      setMocks(
+        mocksRes.data || []
+      );
+
+      setMistakes(
+        mistakesRes.data || []
+      );
+
+      setRevisions(
+        revisionsRes.data || []
+      );
+
+      if (
+        settingsRes.data &&
+        settingsRes.data.length > 0
+      ) {
+        setSettings(
+          settingsRes.data[0]
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Dashboard Error:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const dashboard = useMemo(() => {
     let totalTopics = 0;
@@ -40,9 +97,9 @@ function Dashboard() {
 
     modules.forEach((module) => {
       const topics = [
-        ...module.qa,
-        ...module.dilr,
-        ...module.varc
+        ...(module.qa || []),
+        ...(module.dilr || []),
+        ...(module.varc || [])
       ];
 
       totalTopics += topics.length;
@@ -60,14 +117,13 @@ function Dashboard() {
           "revision2"
         ];
 
-        const done =
+        const completed =
           fields.filter(
-            (field) =>
-              topic[field]
+            (field) => topic[field]
           ).length;
 
         if (
-          done ===
+          completed ===
           fields.length
         ) {
           completedTopics++;
@@ -75,214 +131,282 @@ function Dashboard() {
       });
     });
 
-    const pendingTopics =
-      totalTopics -
-      completedTopics;
-
-    const progress =
-      totalTopics === 0
-        ? 0
-        : Math.round(
-            (completedTopics /
-              totalTopics) *
-              100
-          );
-
     return {
       totalTopics,
+
       completedTopics,
-      pendingTopics,
-      progress
+
+      pendingTopics:
+        totalTopics -
+        completedTopics,
+
+      progress:
+        totalTopics === 0
+          ? 0
+          : Math.round(
+              (completedTopics /
+                totalTopics) *
+                100
+            ),
+
+      mocks:
+        mocks.length,
+
+      mistakes:
+        mistakes.filter(
+          (m) =>
+            m.status ===
+            "Open"
+        ).length,
+
+      revisions:
+        revisions.filter(
+          (r) =>
+            r.status ===
+            "Pending"
+        ).length,
+
+      latestMock:
+        mocks.length > 0
+          ? mocks[0]
+          : null
     };
-  }, [modules]);
+  }, [
+    modules,
+    mocks,
+    mistakes,
+    revisions
+  ]);
 
-  const today =
-    new Date();
+  const catDate =
+    settings?.cat_exam_date ||
+    "2026-11-29";
 
-  const examDate =
-    new Date(catDate);
+  const targetPercentile =
+    settings?.target_percentile ||
+    99;
+
+  const studyHours =
+    settings?.daily_study_hours ||
+    4;
 
   const daysLeft =
     Math.ceil(
-      (examDate -
-        today) /
+      (new Date(catDate) -
+        new Date()) /
         (1000 *
           60 *
           60 *
           24)
     );
 
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <h1>Loading...</h1>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="dashboard-page">
 
-      <h1>
-        CAT Command Center
-      </h1>
+      <div className="hero">
 
-      <div
-        style={{
-          background:
-            "#1e293b",
-          padding: "25px",
-          borderRadius:
-            "18px",
-          marginBottom:
-            "20px",
-          border:
-            "1px solid #334155"
-        }}
-      >
-        <h2>
-          Overall Progress
-        </h2>
+        <div>
 
-        <div
-          style={{
-            width: "100%",
-            height: "16px",
-            background:
-              "#0f172a",
-            borderRadius:
-              "999px",
-            overflow:
-              "hidden",
-            marginTop:
-              "15px"
-          }}
-        >
-          <div
-            style={{
-              width: `${dashboard.progress}%`,
-              height:
-                "100%",
-              background:
-                "#06b6d4"
-            }}
-          />
+          <h1>
+            🐱 CAT Command Center
+          </h1>
+
+          <p>
+            Target:
+            {" "}
+            {targetPercentile}
+            %
+            {" • "}
+            {daysLeft}
+            {" "}
+            days remaining
+          </p>
+
         </div>
 
-        <h2
-          style={{
-            color:
-              "#06b6d4",
-            marginTop:
-              "15px"
-          }}
-        >
+        <div className="hero-score">
           {dashboard.progress}%
-        </h2>
+        </div>
+
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit,minmax(220px,1fr))",
-          gap: "15px"
-        }}
-      >
-        <Card
-          title="CAT Countdown"
-          value={`${daysLeft} Days`}
-        />
+      <div className="progress-section">
+
+        <div className="progress-header">
+          Overall Preparation
+        </div>
+
+        <div className="progress-track">
+
+          <div
+            className="progress-fill"
+            style={{
+              width:
+                `${dashboard.progress}%`
+            }}
+          />
+
+        </div>
+
+      </div>
+
+      <div className="dashboard-grid">
 
         <Card
-          title="Target Percentile"
-          value={targetPercentile}
-        />
-
-        <Card
-          title="Daily Goal"
-          value={`${studyHours} hrs`}
-        />
-
-        <Card
-          title="Total Topics"
+          title="Topics"
           value={
             dashboard.totalTopics
           }
         />
 
         <Card
-          title="Completed Topics"
+          title="Completed"
           value={
             dashboard.completedTopics
           }
         />
 
         <Card
-          title="Pending Topics"
+          title="Pending"
           value={
             dashboard.pendingTopics
           }
         />
 
         <Card
-          title="Revision Queue"
+          title="Mocks"
           value={
-            revisionQueue.length
+            dashboard.mocks
           }
         />
 
         <Card
-          title="Study Sessions"
+          title="Mistakes"
           value={
-            studySessions.length
+            dashboard.mistakes
           }
         />
+
+        <Card
+          title="Revisions"
+          value={
+            dashboard.revisions
+          }
+        />
+
+        <Card
+          title="Daily Goal"
+          value={`${studyHours}h`}
+        />
+
+        <Card
+          title="Days Left"
+          value={daysLeft}
+        />
+
       </div>
 
-      <div
-        style={{
-          background:
-            "#1e293b",
-          padding: "25px",
-          borderRadius:
-            "18px",
-          marginTop:
-            "25px",
-          border:
-            "1px solid #334155"
-        }}
-      >
-        <h2>
-          CAT Overview
-        </h2>
+      <div className="dashboard-panels">
 
-        <p>
-          Days Remaining:
-          {" "}
-          {daysLeft}
-        </p>
+        <div className="panel">
 
-        <p>
-          Topics Completed:
-          {" "}
-          {
-            dashboard.completedTopics
-          }
-          /
-          {" "}
-          {
-            dashboard.totalTopics
-          }
-        </p>
+          <h2>
+            Performance Snapshot
+          </h2>
 
-        <p>
-          Revision Tasks:
-          {" "}
-          {
-            revisionQueue.length
-          }
-        </p>
+          <div className="snapshot-row">
+            <span>
+              Completion Rate
+            </span>
+            <strong>
+              {
+                dashboard.progress
+              }
+              %
+            </strong>
+          </div>
 
-        <p>
-          Study Sessions:
-          {" "}
-          {
-            studySessions.length
-          }
-        </p>
+          <div className="snapshot-row">
+            <span>
+              Open Mistakes
+            </span>
+            <strong>
+              {
+                dashboard.mistakes
+              }
+            </strong>
+          </div>
+
+          <div className="snapshot-row">
+            <span>
+              Pending Revisions
+            </span>
+            <strong>
+              {
+                dashboard.revisions
+              }
+            </strong>
+          </div>
+
+        </div>
+
+        <div className="panel">
+
+          <h2>
+            Latest Mock
+          </h2>
+
+          {dashboard.latestMock ? (
+            <>
+              <div className="snapshot-row">
+                <span>Name</span>
+                <strong>
+                  {
+                    dashboard
+                      .latestMock
+                      .name
+                  }
+                </strong>
+              </div>
+
+              <div className="snapshot-row">
+                <span>Score</span>
+                <strong>
+                  {
+                    dashboard
+                      .latestMock
+                      .score
+                  }
+                </strong>
+              </div>
+
+              <div className="snapshot-row">
+                <span>Percentile</span>
+                <strong>
+                  {
+                    dashboard
+                      .latestMock
+                      .percentile
+                  }
+                </strong>
+              </div>
+            </>
+          ) : (
+            <p>
+              No mocks recorded yet.
+            </p>
+          )}
+
+        </div>
+
       </div>
 
     </div>
@@ -294,27 +418,9 @@ function Card({
   value
 }) {
   return (
-    <div
-      style={{
-        background:
-          "#1e293b",
-        padding: "20px",
-        borderRadius:
-          "16px",
-        border:
-          "1px solid #334155"
-      }}
-    >
-      <h3>{title}</h3>
-
-      <h2
-        style={{
-          color:
-            "#06b6d4"
-        }}
-      >
-        {value}
-      </h2>
+    <div className="dashboard-card">
+      <span>{title}</span>
+      <h2>{value}</h2>
     </div>
   );
 }

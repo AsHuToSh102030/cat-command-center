@@ -2,72 +2,120 @@
   max-width: 1400px;
 }
 
-.revision-stats {
+.analytics-grid {
   display: grid;
   grid-template-columns:
     repeat(auto-fit,
     minmax(220px, 1fr));
   gap: 15px;
-  margin: 20px 0;
+  margin: 20px 0 30px;
 }
 
-.stat-card {
-  background: #1e293b;
+.analytics-card {
+  background: #111827;
   border: 1px solid #334155;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 18px;
+  padding: 22px;
 }
 
-.stat-card h2 {
-  color: #06b6d4;
+.analytics-card h3 {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.analytics-card h2 {
+  margin-top: 10px;
+  color: #22d3ee;
+  font-size: 32px;
 }
 
 .revision-form {
   display: grid;
-  gap: 10px;
-  margin: 20px 0;
+  gap: 12px;
+  margin-bottom: 30px;
 }
 
 .revision-form input,
 .revision-form select {
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: white;
 }
 
 .revision-form button {
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  background: #06b6d4;
+  background: linear-gradient(
+    135deg,
+    #22d3ee,
+    #06b6d4
+  );
   color: #0f172a;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
   cursor: pointer;
-  font-weight: bold;
 }
 
 .revision-list {
   display: grid;
-  gap: 15px;
+  gap: 16px;
 }
 
 .revision-card {
-  background: #1e293b;
+  background: #111827;
   border: 1px solid #334155;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.revision-card h2 {
+  margin-top: 0;
+  color: #22d3ee;
+}
+
+.revision-card p {
+  color: #cbd5e1;
+  margin: 8px 0;
 }
 
 .actions {
   display: flex;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.actions button:first-child {
+  background: #22c55e;
+  color: white;
 }
 
 .delete-btn {
   background: #ef4444;
   color: white;
-  border: none;
-  padding: 10px;
-  border-radius: 8px;
-  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
 }

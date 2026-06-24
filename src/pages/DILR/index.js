@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./DILR.css";
 
+const DEFAULT_TYPES = [
+  "Arrangement",
+  "Tournament",
+  "Venn Diagram",
+  "Distribution",
+  "Games & Strategy",
+  "Data Interpretation"
+];
+
 function DILR() {
-  const [sets, setSets] = useState(() => {
-    const saved = localStorage.getItem("dilrSets");
+  const [sets, setSets] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return [];
+  const [types, setTypes] = useState(() => {
+    const saved = localStorage.getItem("dilrTypes");
+    return saved
+      ? JSON.parse(saved)
+      : DEFAULT_TYPES;
   });
+
+  const [newType, setNewType] =
+    useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -24,11 +37,34 @@ function DILR() {
   });
 
   useEffect(() => {
+    loadSets();
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(
-      "dilrSets",
-      JSON.stringify(sets)
+      "dilrTypes",
+      JSON.stringify(types)
     );
-  }, [sets]);
+  }, [types]);
+
+  const loadSets = async () => {
+    const { data, error } =
+      await supabase
+        .from("dilr_sets")
+        .select("*")
+        .order("created_at", {
+          ascending: false
+        });
+
+    console.log(data);
+    console.log(error);
+
+    if (!error) {
+      setSets(data || []);
+    }
+
+    setLoading(false);
+  };
 
   const analytics = useMemo(() => {
     if (sets.length === 0) {
@@ -36,96 +72,194 @@ function DILR() {
         totalSets: 0,
         averageAccuracy: 0,
         averageTime: 0,
-        easySets: 0,
-        mediumSets: 0,
         hardSets: 0
       };
     }
 
-    const totalAccuracy = sets.reduce(
-      (sum, set) =>
-        sum + Number(set.accuracy),
-      0
-    );
+    const totalAccuracy =
+      sets.reduce(
+        (sum, set) =>
+          sum +
+          Number(
+            set.accuracy || 0
+          ),
+        0
+      );
 
-    const totalTime = sets.reduce(
-      (sum, set) =>
-        sum +
-        Number(set.timeTaken || 0),
-      0
-    );
+    const totalTime =
+      sets.reduce(
+        (sum, set) =>
+          sum +
+          Number(
+            set.time_taken || 0
+          ),
+        0
+      );
 
     return {
       totalSets: sets.length,
-      averageAccuracy: Math.round(
-        totalAccuracy / sets.length
-      ),
-      averageTime: Math.round(
-        totalTime / sets.length
-      ),
-      easySets: sets.filter(
-        (s) =>
-          s.difficulty === "Easy"
-      ).length,
-      mediumSets: sets.filter(
-        (s) =>
-          s.difficulty ===
-          "Medium"
-      ).length,
-      hardSets: sets.filter(
-        (s) =>
-          s.difficulty === "Hard"
-      ).length
+
+      averageAccuracy:
+        Math.round(
+          totalAccuracy /
+            sets.length
+        ),
+
+      averageTime:
+        Math.round(
+          totalTime /
+            sets.length
+        ),
+
+      hardSets:
+        sets.filter(
+          (s) =>
+            s.difficulty ===
+            "Hard"
+        ).length
     };
   }, [sets]);
 
-  const addSet = () => {
-    if (!form.name) return;
+  const addType = () => {
+    if (!newType.trim())
+      return;
+
+    if (
+      types.includes(
+        newType.trim()
+      )
+    )
+      return;
+
+    setTypes([
+      ...types,
+      newType.trim()
+    ]);
+
+    setNewType("");
+  };
+
+  const addSet = async () => {
+    if (!form.name.trim())
+      return;
 
     const newSet = {
-      id: Date.now(),
-      ...form
+      name: form.name,
+      type: form.type,
+      difficulty:
+        form.difficulty,
+      source: form.source,
+      time_taken: Number(
+        form.timeTaken || 0
+      ),
+      accuracy: Number(
+        form.accuracy || 0
+      ),
+      solved: true,
+      notes: form.notes
     };
 
-    setSets([newSet, ...sets]);
+    const { data, error } =
+      await supabase
+        .from("dilr_sets")
+        .insert([newSet])
+        .select();
 
-    setForm({
-      name: "",
-      type: "Arrangement",
-      difficulty: "Medium",
-      source: "",
-      timeTaken: "",
-      accuracy: "",
-      solved: true,
-      notes: ""
-    });
+    console.log(data);
+    console.log(error);
+
+    if (!error && data) {
+      setSets([
+        data[0],
+        ...sets
+      ]);
+
+      setForm({
+        name: "",
+        type: types[0],
+        difficulty:
+          "Medium",
+        source: "",
+        timeTaken: "",
+        accuracy: "",
+        solved: true,
+        notes: ""
+      });
+    }
   };
 
-  const deleteSet = (id) => {
-    setSets(
-      sets.filter(
-        (set) => set.id !== id
+  const deleteSet = async (
+    id
+  ) => {
+    const { error } =
+      await supabase
+        .from("dilr_sets")
+        .delete()
+        .eq("id", id);
+
+    if (!error) {
+      setSets(
+        sets.filter(
+          (set) =>
+            set.id !== id
+        )
+      );
+    }
+  };
+
+  const getDifficultyClass =
+    (
+      difficulty
+    ) => {
+      if (
+        difficulty ===
+        "Easy"
       )
+        return "easy";
+
+      if (
+        difficulty ===
+        "Hard"
+      )
+        return "hard";
+
+      return "medium";
+    };
+
+  if (loading) {
+    return (
+      <div className="dilr-page">
+        <h1>
+          🧩 DILR Tracker
+        </h1>
+        <h2>
+          Loading...
+        </h2>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="dilr-page">
 
-      <h1>DILR Set Tracker</h1>
+      <h1>
+        🧩 DILR Tracker
+      </h1>
 
       <div className="analytics-grid">
 
         <div className="analytics-card">
           <h3>Total Sets</h3>
           <h2>
-            {analytics.totalSets}
+            {
+              analytics.totalSets
+            }
           </h2>
         </div>
 
         <div className="analytics-card">
           <h3>
-            Average Accuracy
+            Avg Accuracy
           </h3>
           <h2>
             {
@@ -136,7 +270,9 @@ function DILR() {
         </div>
 
         <div className="analytics-card">
-          <h3>Average Time</h3>
+          <h3>
+            Avg Time
+          </h3>
           <h2>
             {
               analytics.averageTime
@@ -146,10 +282,43 @@ function DILR() {
         </div>
 
         <div className="analytics-card">
-          <h3>Hard Sets</h3>
+          <h3>
+            Hard Sets
+          </h3>
           <h2>
-            {analytics.hardSets}
+            {
+              analytics.hardSets
+            }
           </h2>
+        </div>
+
+      </div>
+      <div className="type-manager">
+
+        <h3>
+          Add Custom DILR Type
+        </h3>
+
+        <div className="type-row">
+
+          <input
+            value={newType}
+            placeholder="Supply Chain Puzzle"
+            onChange={(e) =>
+              setNewType(
+                e.target.value
+              )
+            }
+          />
+
+          <button
+            onClick={
+              addType
+            }
+          >
+            Add Type
+          </button>
+
         </div>
 
       </div>
@@ -178,28 +347,23 @@ function DILR() {
             })
           }
         >
-          <option>
-            Arrangement
-          </option>
-          <option>
-            Tournament
-          </option>
-          <option>
-            Venn Diagram
-          </option>
-          <option>
-            Distribution
-          </option>
-          <option>
-            Games & Strategy
-          </option>
-          <option>
-            Data Interpretation
-          </option>
+          {types.map(
+            (type) => (
+              <option
+                key={
+                  type
+                }
+              >
+                {type}
+              </option>
+            )
+          )}
         </select>
 
         <select
-          value={form.difficulty}
+          value={
+            form.difficulty
+          }
           onChange={(e) =>
             setForm({
               ...form,
@@ -208,9 +372,15 @@ function DILR() {
             })
           }
         >
-          <option>Easy</option>
-          <option>Medium</option>
-          <option>Hard</option>
+          <option>
+            Easy
+          </option>
+          <option>
+            Medium
+          </option>
+          <option>
+            Hard
+          </option>
         </select>
 
         <input
@@ -226,8 +396,10 @@ function DILR() {
         />
 
         <input
-          placeholder="Time Taken (minutes)"
-          value={form.timeTaken}
+          placeholder="Time Taken"
+          value={
+            form.timeTaken
+          }
           onChange={(e) =>
             setForm({
               ...form,
@@ -239,7 +411,9 @@ function DILR() {
 
         <input
           placeholder="Accuracy %"
-          value={form.accuracy}
+          value={
+            form.accuracy
+          }
           onChange={(e) =>
             setForm({
               ...form,
@@ -262,7 +436,9 @@ function DILR() {
         />
 
         <button
-          onClick={addSet}
+          onClick={
+            addSet
+          }
         >
           Add DILR Set
         </button>
@@ -277,41 +453,51 @@ function DILR() {
             className="set-card"
           >
 
-            <h3>{set.name}</h3>
+            <div className="set-header">
+
+              <h3>
+                {set.name}
+              </h3>
+
+              <span
+                className={`difficulty-badge ${getDifficultyClass(
+                  set.difficulty
+                )}`}
+              >
+                {
+                  set.difficulty
+                }
+              </span>
+
+            </div>
 
             <p>
-              Type:
+              🧩 Type:
               {" "}
               {set.type}
             </p>
 
             <p>
-              Difficulty:
-              {" "}
-              {set.difficulty}
-            </p>
-
-            <p>
-              Accuracy:
+              🎯 Accuracy:
               {" "}
               {set.accuracy}%
             </p>
 
             <p>
-              Time:
+              ⏱ Time:
               {" "}
-              {set.timeTaken}
-              min
+              {set.time_taken}
+              {" "}min
             </p>
 
             <p>
-              Source:
+              📚 Source:
               {" "}
               {set.source}
             </p>
 
             <p>
-              Notes:
+              📝 Notes:
               {" "}
               {set.notes}
             </p>
@@ -319,7 +505,9 @@ function DILR() {
             <button
               className="delete-btn"
               onClick={() =>
-                deleteSet(set.id)
+                deleteSet(
+                  set.id
+                )
               }
             >
               Delete

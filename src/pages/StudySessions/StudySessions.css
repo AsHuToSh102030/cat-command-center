@@ -5,68 +5,118 @@
 .stats-grid {
   display: grid;
   grid-template-columns:
-    repeat(auto-fit,
-    minmax(220px, 1fr));
-  gap: 15px;
-  margin: 20px 0;
+    repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin: 25px 0;
 }
 
 .stat-card {
-  background: #1e293b;
+  background: linear-gradient(
+    135deg,
+    #111827,
+    #1e293b
+  );
   border: 1px solid #334155;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 20px;
+  padding: 22px;
+}
+
+.stat-card h3 {
+  margin: 0;
+  color: #cbd5e1;
 }
 
 .stat-card h2 {
-  color: #06b6d4;
+  margin-top: 10px;
+  color: #22d3ee;
+  font-size: 32px;
 }
 
 .study-form {
   display: grid;
-  gap: 10px;
-  margin: 20px 0;
+  grid-template-columns:
+    repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 30px;
 }
 
 .study-form input,
+.study-form select,
 .study-form textarea {
-  padding: 12px;
-  border-radius: 8px;
-  border: none;
+  background: #111827;
+  border: 1px solid #334155;
+  color: white;
+  border-radius: 12px;
+  padding: 14px;
 }
 
 .study-form textarea {
-  min-height: 100px;
+  min-height: 120px;
+  grid-column: 1/-1;
 }
 
 .study-form button {
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  background: #06b6d4;
+  background: linear-gradient(
+    135deg,
+    #22d3ee,
+    #06b6d4
+  );
   color: #0f172a;
-  font-weight: bold;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .session-list {
   display: grid;
-  gap: 15px;
+  grid-template-columns:
+    repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
 }
 
 .session-card {
-  background: #1e293b;
+  background: linear-gradient(
+    135deg,
+    #111827,
+    #1e293b
+  );
   border: 1px solid #334155;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.session-card h2 {
+  margin-top: 0;
+  color: #22d3ee;
+}
+
+.session-card p {
+  margin: 8px 0;
+  color: #cbd5e1;
 }
 
 .delete-btn {
-  margin-top: 10px;
+  margin-top: 15px;
+  width: 100%;
   background: #ef4444;
   color: white;
   border: none;
-  padding: 10px;
-  border-radius: 8px;
+  border-radius: 12px;
+  padding: 12px;
   cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-list {
+    grid-template-columns: 1fr;
+  }
+
 }

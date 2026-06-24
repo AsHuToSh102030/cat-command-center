@@ -2,29 +2,103 @@
   max-width: 1400px;
 }
 
+.achievement-summary {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.achievement-summary h2 {
+  color: #22d3ee;
+  margin: 0;
+}
+
 .achievement-grid {
   display: grid;
   grid-template-columns:
-    repeat(auto-fit, minmax(250px, 1fr));
+    repeat(
+      auto-fit,
+      minmax(280px, 1fr)
+    );
   gap: 20px;
-  margin-top: 25px;
 }
 
 .achievement {
+  position: relative;
   padding: 25px;
-  border-radius: 16px;
+  border-radius: 20px;
   border: 1px solid #334155;
+  transition: 0.25s;
+}
+
+.achievement:hover {
+  transform: translateY(-4px);
 }
 
 .unlocked {
-  background: #1e293b;
+  background:
+    linear-gradient(
+      135deg,
+      #111827,
+      #1e293b
+    );
 }
 
 .locked {
-  background: #111827;
-  opacity: 0.6;
+  background: #0f172a;
+  opacity: 0.75;
+}
+
+.achievement-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.achievement-badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  font-size: 24px;
 }
 
 .achievement h2 {
-  color: #06b6d4;
+  color: #22d3ee;
+  margin-top: 0;
+}
+
+.progress-container {
+  margin-top: 15px;
+}
+
+.progress-track {
+  height: 12px;
+  background: #0f172a;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background:
+    linear-gradient(
+      90deg,
+      #22d3ee,
+      #06b6d4
+    );
+}
+
+.progress-text {
+  margin-top: 8px;
+  font-weight: 700;
+  color: #22d3ee;
+}
+
+@media (max-width: 768px) {
+
+  .achievement-grid {
+    grid-template-columns: 1fr;
+  }
+
 }

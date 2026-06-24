@@ -1,113 +1,174 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import "./StudySessions.css";
 
 function StudySessions() {
-  const [sessions, setSessions] = useState(() => {
-    const saved = localStorage.getItem(
-      "studySessions"
-    );
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return [];
-  });
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
-    module: "",
+    subject: "QA",
     topic: "",
     duration: "",
+    productivity: "8",
     notes: ""
   });
 
   useEffect(() => {
-    localStorage.setItem(
-      "studySessions",
-      JSON.stringify(sessions)
-    );
-  }, [sessions]);
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    const { data, error } = await supabase
+      .from("study_sessions")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+    console.log(data);
+    console.log(error);
+
+    if (!error) {
+      setSessions(data || []);
+    }
+
+    setLoading(false);
+  };
 
   const analytics = useMemo(() => {
-    if (sessions.length === 0) {
+    if (!sessions.length) {
       return {
         totalHours: 0,
         totalSessions: 0,
-        averageHours: 0
+        averageHours: 0,
+        streak: 0
       };
     }
 
-    const totalHours =
+    const totalMinutes =
       sessions.reduce(
         (sum, session) =>
           sum +
-          Number(session.duration),
+          Number(session.duration || 0),
         0
-      ) / 60;
+      );
 
     return {
       totalHours:
         Math.round(
-          totalHours * 10
+          (totalMinutes / 60) * 10
         ) / 10,
+
       totalSessions:
         sessions.length,
+
       averageHours:
         Math.round(
-          (totalHours /
-            sessions.length) *
-            10
-        ) / 10
+          (
+            totalMinutes /
+            60 /
+            sessions.length
+          ) * 10
+        ) / 10,
+
+      streak:
+        new Set(
+          sessions.map(
+            (session) =>
+              session.date
+          )
+        ).size
     };
   }, [sessions]);
 
-  const addSession = () => {
+  const addSession = async () => {
     if (
-      !form.module ||
       !form.topic ||
       !form.duration
-    ) {
+    )
       return;
-    }
 
     const newSession = {
       id: Date.now(),
+      module: form.subject,
+      subject: form.subject,
+      topic: form.topic,
+      duration: Number(
+        form.duration
+      ),
+      productivity:
+        form.productivity,
+      notes: form.notes,
       date:
         new Date()
           .toISOString()
-          .split("T")[0],
-      ...form
+          .split("T")[0]
     };
 
-    setSessions([
-      newSession,
-      ...sessions
-    ]);
+    const { data, error } =
+      await supabase
+        .from("study_sessions")
+        .insert([newSession])
+        .select();
 
-    setForm({
-      module: "",
-      topic: "",
-      duration: "",
-      notes: ""
-    });
+    console.log(data);
+    console.log(error);
+
+    if (!error) {
+      setSessions([
+        data[0],
+        ...sessions
+      ]);
+
+      setForm({
+        subject: "QA",
+        topic: "",
+        duration: "",
+        productivity: "8",
+        notes: ""
+      });
+    }
   };
 
-  const deleteSession = (
+  const deleteSession = async (
     id
   ) => {
-    setSessions(
-      sessions.filter(
-        (session) =>
-          session.id !== id
-      )
-    );
+    const { error } =
+      await supabase
+        .from("study_sessions")
+        .delete()
+        .eq("id", id);
+
+    if (!error) {
+      setSessions(
+        sessions.filter(
+          (session) =>
+            session.id !== id
+        )
+      );
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="study-page">
+        <h1>
+          📚 Study Sessions
+        </h1>
+
+        <h2>
+          Loading...
+        </h2>
+      </div>
+    );
+  }
 
   return (
     <div className="study-page">
 
       <h1>
-        Study Session Tracker
+        📚 Study Sessions
       </h1>
 
       <div className="stats-grid">
@@ -122,9 +183,7 @@ function StudySessions() {
         </div>
 
         <div className="stat-card">
-          <h3>
-            Total Sessions
-          </h3>
+          <h3>Sessions</h3>
           <h2>
             {
               analytics.totalSessions
@@ -134,8 +193,7 @@ function StudySessions() {
 
         <div className="stat-card">
           <h3>
-            Avg Hours /
-            Session
+            Avg Hours
           </h3>
           <h2>
             {
@@ -144,21 +202,35 @@ function StudySessions() {
           </h2>
         </div>
 
+        <div className="stat-card">
+          <h3>
+            Active Days
+          </h3>
+          <h2>
+            {
+              analytics.streak
+            }
+          </h2>
+        </div>
+
       </div>
 
       <div className="study-form">
 
-        <input
-          placeholder="Module"
-          value={form.module}
+        <select
+          value={form.subject}
           onChange={(e) =>
             setForm({
               ...form,
-              module:
+              subject:
                 e.target.value
             })
           }
-        />
+        >
+          <option>QA</option>
+          <option>DILR</option>
+          <option>VARC</option>
+        </select>
 
         <input
           placeholder="Topic"
@@ -184,8 +256,45 @@ function StudySessions() {
           }
         />
 
+        <select
+          value={
+            form.productivity
+          }
+          onChange={(e) =>
+            setForm({
+              ...form,
+              productivity:
+                e.target.value
+            })
+          }
+        >
+          <option value="10">
+            10/10
+          </option>
+
+          <option value="9">
+            9/10
+          </option>
+
+          <option value="8">
+            8/10
+          </option>
+
+          <option value="7">
+            7/10
+          </option>
+
+          <option value="6">
+            6/10
+          </option>
+
+          <option value="5">
+            5/10
+          </option>
+        </select>
+
         <textarea
-          placeholder="Notes"
+          placeholder="Session Notes"
           value={form.notes}
           onChange={(e) =>
             setForm({
@@ -217,31 +326,20 @@ function StudySessions() {
               className="session-card"
             >
 
-              <h3>
+              <h2>
                 {
                   session.topic
                 }
-              </h3>
+              </h2>
 
               <p>
-                Module:
-                {" "}
-                {
-                  session.module
-                }
+                📚{" "}
+                {session.subject ||
+                  session.module}
               </p>
 
               <p>
-                Date:
-                {" "}
-                {
-                  session.date
-                }
-              </p>
-
-              <p>
-                Duration:
-                {" "}
+                ⏱{" "}
                 {
                   session.duration
                 }
@@ -249,8 +347,22 @@ function StudySessions() {
               </p>
 
               <p>
-                Notes:
-                {" "}
+                ⭐{" "}
+                {
+                  session.productivity
+                }
+                /10
+              </p>
+
+              <p>
+                📅{" "}
+                {
+                  session.date
+                }
+              </p>
+
+              <p>
+                📝{" "}
                 {
                   session.notes
                 }
