@@ -20,132 +20,218 @@ function Settings() {
   const [settingsId, setSettingsId] =
     useState(null);
 
+  const [userId, setUserId] =
+    useState(null);
+
   const [loading, setLoading] =
     useState(true);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    const initializeSettings =
+      async () => {
+        try {
+          const {
+            data: { user }
+          } = await supabase.auth.getUser();
 
-  const loadSettings = async () => {
+          if (!user) {
+            console.log(
+              "No user found, redirecting to login"
+            );
+            navigate("/login");
+            setLoading(false);
+            return;
+          }
+
+          console.log(
+            "Current user:",
+            user.id
+          );
+          setUserId(user.id);
+
+          await loadSettings(user.id);
+        } catch (err) {
+          console.error(
+            "Error initializing settings:",
+            err
+          );
+          setLoading(false);
+        }
+      };
+
+    initializeSettings();
+  }, [navigate]);
+
+  const loadSettings = async (
+    currentUserId
+  ) => {
     try {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      console.log(
+        "Loading settings for user:",
+        currentUserId
+      );
 
       const { data, error } =
         await supabase
           .from("settings")
           .select("*")
-          .eq("user_id", user.id)
-          .limit(1);
+          .eq("user_id", currentUserId)
+          .single();
 
-      if (error) {
-        console.error(error);
+      if (
+        error &&
+        error.code !==
+          "PGRST116"
+      ) {
+        console.error(
+          "Error loading settings:",
+          error
+        );
         setLoading(false);
         return;
       }
 
-      if (
-        data &&
-        data.length > 0
-      ) {
-        const settings =
-          data[0];
-
-        setSettingsId(
-          settings.id
+      if (data) {
+        console.log(
+          "Settings found:",
+          data
         );
 
+        setSettingsId(data.id);
+
         setCatDate(
-          settings.cat_exam_date ||
+          data.cat_exam_date ||
             "2026-11-29"
         );
 
         setTargetPercentile(
-          settings.target_percentile ||
-            "99"
+          String(
+            data.target_percentile ||
+              99
+          )
         );
 
         setDailyStudyHours(
-          settings.daily_study_hours ||
-            "4"
+          String(
+            data.daily_study_hours ||
+              4
+          )
         );
-      } else {
-        const {
-          data: newData,
-          error: insertError
-        } = await supabase
-          .from("settings")
-          .insert([
-            {
-              user_id: user.id,
-              cat_exam_date:
-                "2026-11-29",
-              target_percentile:
-                99,
-              daily_study_hours:
-                4
-            }
-          ])
-          .select();
 
-        if (
-          insertError
-        ) {
+        setLoading(false);
+      } else {
+        console.log(
+          "No settings found, creating default settings"
+        );
+
+        const { data: newData, error: insertError } =
+          await supabase
+            .from("settings")
+            .insert([
+              {
+                user_id:
+                  currentUserId,
+                cat_exam_date:
+                  "2026-11-29",
+                target_percentile:
+                  99,
+                daily_study_hours:
+                  4
+              }
+            ])
+            .select()
+            .single();
+
+        if (insertError) {
           console.error(
+            "Error creating default settings:",
             insertError
           );
-        } else if (
-          newData &&
-          newData.length > 0
-        ) {
-          setSettingsId(
-            newData[0].id
-          );
-
-          setCatDate(
-            newData[0]
-              .cat_exam_date
-          );
-
-          setTargetPercentile(
-            String(
-              newData[0]
-                .target_percentile
-            )
-          );
-
-          setDailyStudyHours(
-            String(
-              newData[0]
-                .daily_study_hours
-            )
-          );
+          setLoading(false);
+          return;
         }
-      }
 
-      setLoading(false);
+        console.log(
+          "Default settings created:",
+          newData
+        );
+
+        setSettingsId(newData.id);
+
+        setCatDate(
+          newData.cat_exam_date
+        );
+
+        setTargetPercentile(
+          String(
+            newData.target_percentile
+          )
+        );
+
+        setDailyStudyHours(
+          String(
+            newData.daily_study_hours
+          )
+        );
+
+        setLoading(false);
+      }
     } catch (err) {
-      console.error(err);
+      console.error(
+        "Unexpected error in loadSettings:",
+        err
+      );
       setLoading(false);
     }
   };
 
   const saveSettings =
     async () => {
-      if (!settingsId)
+      if (!settingsId) {
+        console.error(
+          "No settingsId available"
+        );
+        alert(
+          "Failed to save settings: No settings ID"
+        );
         return;
+      }
+
+      if (!userId) {
+        console.error(
+          "No userId available"
+        );
+        alert(
+          "Failed to save settings: No user ID"
+        );
+        return;
+      }
 
       try {
-        const { error } =
+        console.log(
+          "Saving settings for user:",
+          userId
+        );
+
+        console.log(
+          "Update payload:",
+          {
+            cat_exam_date:
+              catDate,
+            target_percentile:
+              Number(
+                targetPercentile
+              ),
+            daily_study_hours:
+              Number(
+                dailyStudyHours
+              )
+          }
+        );
+
+        const { data, error } =
           await supabase
             .from("settings")
             .update({
@@ -160,23 +246,51 @@ function Settings() {
                   dailyStudyHours
                 )
             })
-            .eq(
-              "id",
-              settingsId
-            );
+            .eq("id", settingsId)
+            .eq("user_id", userId)
+            .select()
+            .single();
 
         if (error) {
-          console.error(error);
+          console.error(
+            "Error saving settings:",
+            error
+          );
           alert(
             "Failed to save settings"
           );
-        } else {
-          alert(
-            "Settings saved successfully"
-          );
+          return;
         }
+
+        console.log(
+          "Settings saved successfully:",
+          data
+        );
+
+        setCatDate(
+          data.cat_exam_date
+        );
+
+        setTargetPercentile(
+          String(
+            data.target_percentile
+          )
+        );
+
+        setDailyStudyHours(
+          String(
+            data.daily_study_hours
+          )
+        );
+
+        alert(
+          "Settings saved successfully"
+        );
       } catch (err) {
-        console.error(err);
+        console.error(
+          "Unexpected error saving settings:",
+          err
+        );
         alert(
           "Failed to save settings"
         );
@@ -199,13 +313,21 @@ function Settings() {
         } = await supabase.auth.getUser();
 
         if (!user) {
+          console.error(
+            "No user found for reset"
+          );
           alert(
             "User not authenticated"
           );
           return;
         }
 
-        await Promise.all([
+        console.log(
+          "Deleting all data for user:",
+          user.id
+        );
+
+        const deletePromises = [
           supabase
             .from("mocks")
             .delete()
@@ -237,7 +359,33 @@ function Settings() {
             )
             .delete()
             .eq("user_id", user.id)
-        ]);
+        ];
+
+        const results =
+          await Promise.all(
+            deletePromises
+          );
+
+        const hasErrors =
+          results.some(
+            (result) =>
+              result.error
+          );
+
+        if (hasErrors) {
+          console.error(
+            "Some deletions failed:",
+            results
+          );
+          alert(
+            "Some data could not be deleted"
+          );
+          return;
+        }
+
+        console.log(
+          "All data deleted successfully"
+        );
 
         alert(
           "Data deleted successfully"
@@ -245,7 +393,10 @@ function Settings() {
 
         window.location.reload();
       } catch (err) {
-        console.error(err);
+        console.error(
+          "Unexpected error in resetEverything:",
+          err
+        );
         alert(
           "Failed to reset data"
         );
@@ -255,19 +406,34 @@ function Settings() {
   const handleLogout =
     async () => {
       try {
+        console.log(
+          "Logging out user"
+        );
+
         const { error } =
           await supabase.auth.signOut();
 
         if (error) {
-          console.error(error);
+          console.error(
+            "Error logging out:",
+            error
+          );
           alert(
             "Failed to logout"
           );
-        } else {
-          navigate("/login");
+          return;
         }
+
+        console.log(
+          "User logged out successfully"
+        );
+
+        navigate("/login");
       } catch (err) {
-        console.error(err);
+        console.error(
+          "Unexpected error logging out:",
+          err
+        );
         alert(
           "Failed to logout"
         );
