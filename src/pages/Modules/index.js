@@ -137,15 +137,6 @@ function Modules() {
     );
   };
 
-  const addTopic = (type, name) => {
-    if (!name.trim()) return;
-
-    const updated = [...modules];
-    updated[selectedModule][type].push(createTopic(name));
-    setModules(updated);
-    saveModulesToSupabase(updated);
-  };
-
   const bulkImportTopics = (type) => {
     if (!bulkImportText.trim()) return;
 
