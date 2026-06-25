@@ -28,6 +28,42 @@ function Settings() {
 
   const navigate = useNavigate();
 
+  const calculateDaysLeftIST = (
+    examDateString
+  ) => {
+    const examDate = new Date(
+      examDateString
+    );
+
+    const now = new Date();
+
+    const istNow = new Date(
+      now.toLocaleString(
+        "en-US",
+        {
+          timeZone: "Asia/Kolkata"
+        }
+      )
+    );
+
+    examDate.setHours(0, 0, 0, 0);
+    istNow.setHours(0, 0, 0, 0);
+
+    const timeDiff =
+      examDate.getTime() -
+      istNow.getTime();
+
+    const daysLeft = Math.ceil(
+      timeDiff /
+      (1000 * 60 * 60 * 24)
+    );
+
+    return Math.max(
+      daysLeft,
+      0
+    );
+  };
+
   useEffect(() => {
     const initializeSettings =
       async () => {
@@ -441,14 +477,7 @@ function Settings() {
     };
 
   const daysLeft =
-    Math.ceil(
-      (new Date(catDate) -
-        new Date()) /
-        (1000 *
-          60 *
-          60 *
-          24)
-    );
+    calculateDaysLeftIST(catDate);
 
   if (loading) {
     return (

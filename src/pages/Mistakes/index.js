@@ -5,6 +5,7 @@ import "./Mistakes.css";
 function Mistakes() {
   const [mistakes, setMistakes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDates, setExpandedDates] = useState({});
 
   const [form, setForm] = useState({
     subject: "QA",
@@ -17,6 +18,28 @@ function Mistakes() {
     approach: ""
   });
 
+  const getISTDateString = () => {
+    const now = new Date();
+    return now.toLocaleDateString(
+      "en-CA",
+      {
+        timeZone: "Asia/Kolkata"
+      }
+    );
+  };
+
+  const getISTDateFromTimestamp = (
+    timestamp
+  ) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString(
+      "en-CA",
+      {
+        timeZone: "Asia/Kolkata"
+      }
+    );
+  };
+
   useEffect(() => {
     loadMistakes();
   }, []);
@@ -27,7 +50,15 @@ function Mistakes() {
         data: { user }
       } = await supabase.auth.getUser();
 
+      console.log(
+        "Current user:",
+        user
+      );
+
       if (!user) {
+        console.log(
+          "No user found in loadMistakes"
+        );
         setLoading(false);
         return;
       }
@@ -40,6 +71,15 @@ function Mistakes() {
           .order("created_at", {
             ascending: false
           });
+
+      console.log(
+        "Mistakes loaded:",
+        data
+      );
+      console.log(
+        "Load error:",
+        error
+      );
 
       if (!error) {
         setMistakes(
@@ -55,7 +95,10 @@ function Mistakes() {
 
       setLoading(false);
     } catch (err) {
-      console.error("Error loading mistakes:", err);
+      console.error(
+        "Unexpected error in loadMistakes:",
+        err
+      );
       setLoading(false);
     }
   };
@@ -83,11 +126,82 @@ function Mistakes() {
     };
   }, [mistakes]);
 
+  const toggleExpandDate =
+    (date) => {
+      setExpandedDates(
+        (prev) => ({
+          ...prev,
+          [date]: !prev[date]
+        })
+      );
+    };
+
+  const groupedMistakes = useMemo(() => {
+    const grouped = {};
+
+    mistakes.forEach((mistake) => {
+      const date =
+        getISTDateFromTimestamp(
+          mistake.created_at
+        );
+
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+
+      grouped[date].push(mistake);
+    });
+
+    const sorted =
+      Object.entries(grouped)
+        .sort(
+          ([dateA], [dateB]) => {
+            const dateAObj =
+              new Date(dateA);
+            const dateBObj =
+              new Date(dateB);
+            return dateBObj - dateAObj;
+          }
+        );
+
+    return sorted.map(
+      ([date, mistakesForDate]) => {
+        const openCount =
+          mistakesForDate.filter(
+            (m) =>
+              m.status === "Open"
+          ).length;
+
+        const fixedCount =
+          mistakesForDate.filter(
+            (m) =>
+              m.status === "Fixed"
+          ).length;
+
+        return {
+          date,
+          mistakes:
+            mistakesForDate,
+          total:
+            mistakesForDate.length,
+          open: openCount,
+          fixed: fixedCount
+        };
+      }
+    );
+  }, [mistakes]);
+
   const addMistake = async () => {
     if (
       !form.topic ||
       !form.reason
     ) {
+      console.warn(
+        "Form incomplete: topic or reason missing"
+      );
+      alert(
+        "Please fill in topic and reason"
+      );
       return;
     }
 
@@ -96,7 +210,21 @@ function Mistakes() {
         data: { user }
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      console.log(
+        "Current user:",
+        user
+      );
+
+      if (!user) {
+        console.error(
+          "No user found in addMistake"
+        );
+        alert("User not authenticated");
+        return;
+      }
+
+      const istDateString =
+        getISTDateString();
 
       const newMistake = {
         user_id: user.id,
@@ -115,8 +243,14 @@ function Mistakes() {
         approach:
           form.approach,
         status: "Open",
-        revision_count: 0
+        revision_count: 0,
+        ist_date: istDateString
       };
+
+      console.log(
+        "Mistake being inserted:",
+        newMistake
+      );
 
       const { data, error } =
         await supabase
@@ -124,48 +258,109 @@ function Mistakes() {
           .insert([newMistake])
           .select();
 
-      if (!error && data) {
-        setMistakes([
-          {
-            ...data[0],
-            revisionCount:
-              data[0].revision_count || 0
-          },
-          ...mistakes
-        ]);
+      console.log(
+        "INSERT DATA:",
+        data
+      );
+      console.log(
+        "INSERT ERROR:",
+        error
+      );
 
-        setForm({
-          subject: "QA",
-          topic: "",
-          source: "",
-          question: "",
-          type:
-            "Conceptual Error",
-          priority:
-            "Medium",
-          reason: "",
-          approach: ""
-        });
+      if (error) {
+        console.error(
+          "Supabase insert error:",
+          error
+        );
+        alert(
+          JSON.stringify(error)
+        );
+        return;
       }
+
+      if (!data) {
+        console.error(
+          "No data returned from insert"
+        );
+        alert(
+          "No data returned from insert"
+        );
+        return;
+      }
+
+      console.log(
+        "Mistake added successfully:",
+        data[0]
+      );
+
+      setMistakes([
+        {
+          ...data[0],
+          revisionCount:
+            data[0].revision_count || 0
+        },
+        ...mistakes
+      ]);
+
+      setForm({
+        subject: "QA",
+        topic: "",
+        source: "",
+        question: "",
+        type:
+          "Conceptual Error",
+        priority:
+          "Medium",
+        reason: "",
+        approach: ""
+      });
+
+      alert(
+        "Mistake added successfully"
+      );
     } catch (err) {
-      console.error("Error adding mistake:", err);
+      console.error(
+        "Unexpected error in addMistake:",
+        err
+      );
+      alert(
+        "Unexpected error: " +
+          err.message
+      );
     }
   };
 
   const toggleStatus =
     async (id) => {
       try {
+        console.log(
+          "Toggling status for id:",
+          id
+        );
+
         const current =
           mistakes.find(
             (m) =>
               m.id === id
           );
 
+        if (!current) {
+          console.error(
+            "Mistake not found"
+          );
+          return;
+        }
+
         const newStatus =
           current.status ===
           "Open"
             ? "Fixed"
             : "Open";
+
+        console.log(
+          "New status:",
+          newStatus
+        );
 
         const { error } =
           await supabase
@@ -177,6 +372,11 @@ function Mistakes() {
                 newStatus
             })
             .eq("id", id);
+
+        console.log(
+          "Update error:",
+          error
+        );
 
         if (!error) {
           setMistakes(
@@ -193,22 +393,42 @@ function Mistakes() {
           );
         }
       } catch (err) {
-        console.error("Error toggling status:", err);
+        console.error(
+          "Unexpected error in toggleStatus:",
+          err
+        );
       }
     };
 
   const increaseRevision =
     async (id) => {
       try {
+        console.log(
+          "Increasing revision for id:",
+          id
+        );
+
         const current =
           mistakes.find(
             (m) =>
               m.id === id
           );
 
+        if (!current) {
+          console.error(
+            "Mistake not found"
+          );
+          return;
+        }
+
         const newCount =
           current.revisionCount +
           1;
+
+        console.log(
+          "New revision count:",
+          newCount
+        );
 
         const { error } =
           await supabase
@@ -220,6 +440,11 @@ function Mistakes() {
                 newCount
             })
             .eq("id", id);
+
+        console.log(
+          "Update error:",
+          error
+        );
 
         if (!error) {
           setMistakes(
@@ -236,13 +461,21 @@ function Mistakes() {
           );
         }
       } catch (err) {
-        console.error("Error increasing revision:", err);
+        console.error(
+          "Unexpected error in increaseRevision:",
+          err
+        );
       }
     };
 
   const deleteMistake =
     async (id) => {
       try {
+        console.log(
+          "Deleting mistake with id:",
+          id
+        );
+
         const { error } =
           await supabase
             .from(
@@ -251,7 +484,16 @@ function Mistakes() {
             .delete()
             .eq("id", id);
 
+        console.log(
+          "Delete error:",
+          error
+        );
+
         if (!error) {
+          console.log(
+            "Mistake deleted successfully"
+          );
+
           setMistakes(
             mistakes.filter(
               (m) =>
@@ -260,7 +502,10 @@ function Mistakes() {
           );
         }
       } catch (err) {
-        console.error("Error deleting mistake:", err);
+        console.error(
+          "Unexpected error in deleteMistake:",
+          err
+        );
       }
     };
 
@@ -456,109 +701,203 @@ function Mistakes() {
 
       <div className="mistake-list">
 
-        {mistakes.map(
-          (mistake) => (
+        {groupedMistakes.length === 0 && (
+          <div className="mistake-card">
+            <h3>No Mistakes Yet</h3>
+            <p>
+              Log your first mistake to track and improve.
+            </p>
+          </div>
+        )}
+
+        {groupedMistakes.map(
+          (dayGroup) => (
             <div
-              key={mistake.id}
-              className="mistake-card"
+              key={dayGroup.date}
+              className="day-group-card"
             >
 
-              <h2>
-                {
-                  mistake.topic
+              <div
+                className="day-group-header"
+                onClick={() =>
+                  toggleExpandDate(
+                    dayGroup.date
+                  )
                 }
-              </h2>
+              >
 
-              <p>
-                📚 Subject:
-                {" "}
-                {
-                  mistake.subject
-                }
-              </p>
+                <div className="day-group-info">
+                  <h3>
+                    📅{" "}
+                    {
+                      dayGroup.date
+                    }
+                  </h3>
 
-              <p>
-                ⚠ Type:
-                {" "}
-                {
-                  mistake.type
-                }
-              </p>
+                  <div className="day-group-stats">
+                    <span>
+                      {
+                        dayGroup.total
+                      }
+                      {" "}
+                      mistakes
+                    </span>
 
-              <p>
-                🎯 Priority:
-                {" "}
-                {
-                  mistake.priority
-                }
-              </p>
+                    <span>
+                      •
+                    </span>
 
-              <p>
-                📝 Reason:
-                {" "}
-                {
-                  mistake.reason
-                }
-              </p>
+                    <span>
+                      {
+                        dayGroup.open
+                      }
+                      {" "}
+                      open
+                    </span>
 
-              <p>
-                ✅ Fix:
-                {" "}
-                {
-                  mistake.approach
-                }
-              </p>
+                    <span>
+                      •
+                    </span>
 
-              <p>
-                🔄 Revisions:
-                {" "}
-                {
-                  mistake.revisionCount
-                }
-              </p>
+                    <span>
+                      {
+                        dayGroup.fixed
+                      }
+                      {" "}
+                      fixed
+                    </span>
+                  </div>
+                </div>
 
-              <p>
-                Status:
-                {" "}
-                {
-                  mistake.status
-                }
-              </p>
-
-              <div className="actions">
-
-                <button
-                  onClick={() =>
-                    toggleStatus(
-                      mistake.id
-                    )
+                <div className="expand-icon">
+                  {
+                    expandedDates[
+                      dayGroup.date
+                    ]
+                      ? "▼"
+                      : "▶"
                   }
-                >
-                  Toggle
-                </button>
-
-                <button
-                  onClick={() =>
-                    increaseRevision(
-                      mistake.id
-                    )
-                  }
-                >
-                  + Revision
-                </button>
-
-                <button
-                  className="delete-btn"
-                  onClick={() =>
-                    deleteMistake(
-                      mistake.id
-                    )
-                  }
-                >
-                  Delete
-                </button>
+                </div>
 
               </div>
+
+              {expandedDates[
+                dayGroup.date
+              ] && (
+                <div className="day-group-mistakes">
+
+                  {dayGroup.mistakes.map(
+                    (mistake) => (
+                      <div
+                        key={mistake.id}
+                        className="grouped-mistake-item"
+                      >
+
+                        <div className="mistake-details">
+                          <h4>
+                            {
+                              mistake.topic
+                            }
+                          </h4>
+
+                          <p>
+                            📚 Subject:
+                            {" "}
+                            {
+                              mistake.subject
+                            }
+                          </p>
+
+                          <p>
+                            ⚠ Type:
+                            {" "}
+                            {
+                              mistake.type
+                            }
+                          </p>
+
+                          <p>
+                            🎯 Priority:
+                            {" "}
+                            {
+                              mistake.priority
+                            }
+                          </p>
+
+                          <p>
+                            📝 Reason:
+                            {" "}
+                            {
+                              mistake.reason
+                            }
+                          </p>
+
+                          <p>
+                            ✅ Fix:
+                            {" "}
+                            {
+                              mistake.approach
+                            }
+                          </p>
+
+                          <p>
+                            🔄 Revisions:
+                            {" "}
+                            {
+                              mistake.revisionCount
+                            }
+                          </p>
+
+                          <p>
+                            Status:
+                            {" "}
+                            {
+                              mistake.status
+                            }
+                          </p>
+                        </div>
+
+                        <div className="mistake-actions">
+
+                          <button
+                            onClick={() =>
+                              toggleStatus(
+                                mistake.id
+                              )
+                            }
+                          >
+                            Toggle
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              increaseRevision(
+                                mistake.id
+                              )
+                            }
+                          >
+                            + Revision
+                          </button>
+
+                          <button
+                            className="delete-btn"
+                            onClick={() =>
+                              deleteMistake(
+                                mistake.id
+                              )
+                            }
+                          >
+                            Delete
+                          </button>
+
+                        </div>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+              )}
 
             </div>
           )

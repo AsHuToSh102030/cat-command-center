@@ -14,101 +14,129 @@ function Dashboard() {
     loadDashboard();
   }, []);
 
- const loadDashboard = async () => {
-  try {
-    setLoading(true);
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const [
+        modulesRes,
+        mocksRes,
+        mistakesRes,
+        revisionsRes,
+        settingsRes
+      ] = await Promise.all([
+        supabase
+          .from("modules")
+          .select("*")
+          .eq("user_id", user.id)
+          .limit(1),
+
+        supabase
+          .from("mocks")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false
+          }),
+
+        supabase
+          .from("mistakes")
+          .select("*")
+          .eq("user_id", user.id),
+
+        supabase
+          .from("revisions")
+          .select("*")
+          .eq("user_id", user.id),
+
+        supabase
+          .from("settings")
+          .select("*")
+          .eq("user_id", user.id)
+          .limit(1)
+      ]);
+
+      if (
+        modulesRes.data &&
+        modulesRes.data.length > 0
+      ) {
+        setModules(
+          modulesRes.data[0]
+            .module_data || []
+        );
+      } else {
+        setModules([]);
+      }
+
+      setMocks(
+        mocksRes.data || []
+      );
+
+      setMistakes(
+        mistakesRes.data || []
+      );
+
+      setRevisions(
+        revisionsRes.data || []
+      );
+
+      if (
+        settingsRes.data &&
+        settingsRes.data.length > 0
+      ) {
+        setSettings(
+          settingsRes.data[0]
+        );
+      } else {
+        setSettings(null);
+      }
+
+    } catch (error) {
+      console.error(
+        "Dashboard Error:",
+        error
+      );
+    } finally {
       setLoading(false);
-      return;
     }
+  };
 
-    const [
-      modulesRes,
-      mocksRes,
-      mistakesRes,
-      revisionsRes,
-      settingsRes
-    ] = await Promise.all([
-      supabase
-        .from("modules")
-        .select("*")
-        .eq("user_id", user.id)
-        .limit(1),
+  const calculateDaysLeft = (
+    catDateString
+  ) => {
+    // Parse date manually from YYYY-MM-DD format
+    const [year, month, day] = catDateString.split("-").map(Number);
+    
+    // Create date in local timezone
+    const catDate = new Date(year, month - 1, day);
+    
+    // Get today's date in local timezone
+    const today = new Date();
+    
+    // Set both to midnight in local time to compare only dates
+    today.setHours(0, 0, 0, 0);
+    catDate.setHours(0, 0, 0, 0);
 
-      supabase
-        .from("mocks")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false
-        }),
-
-      supabase
-        .from("mistakes")
-        .select("*")
-        .eq("user_id", user.id),
-
-      supabase
-        .from("revisions")
-        .select("*")
-        .eq("user_id", user.id),
-
-      supabase
-        .from("settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .limit(1)
-    ]);
-
-    if (
-      modulesRes.data &&
-      modulesRes.data.length > 0
-    ) {
-      setModules(
-        modulesRes.data[0]
-          .module_data || []
-      );
-    } else {
-      setModules([]);
-    }
-
-    setMocks(
-      mocksRes.data || []
+    // Calculate difference in milliseconds
+    const timeDiff = catDate.getTime() - today.getTime();
+    
+    // Convert to days and round up
+    const daysLeft = Math.ceil(
+      timeDiff / (1000 * 60 * 60 * 24)
     );
 
-    setMistakes(
-      mistakesRes.data || []
-    );
-
-    setRevisions(
-      revisionsRes.data || []
-    );
-
-    if (
-      settingsRes.data &&
-      settingsRes.data.length > 0
-    ) {
-      setSettings(
-        settingsRes.data[0]
-      );
-    } else {
-      setSettings(null);
-    }
-
-  } catch (error) {
-    console.error(
-      "Dashboard Error:",
-      error
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+    // Never return a negative number
+    return Math.max(daysLeft, 0);
+  };
 
   const dashboard = useMemo(() => {
     let totalTopics = 0;
@@ -210,14 +238,7 @@ function Dashboard() {
     4;
 
   const daysLeft =
-    Math.ceil(
-      (new Date(catDate) -
-        new Date()) /
-        (1000 *
-          60 *
-          60 *
-          24)
-    );
+    calculateDaysLeft(catDate);
 
   if (loading) {
     return (

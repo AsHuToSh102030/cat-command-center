@@ -8,6 +8,16 @@ function Goals() {
   const [loading, setLoading] = useState(true);
   const [expandedDates, setExpandedDates] = useState({});
 
+  const getISTDateFromTimestamp = (
+    timestamp
+  ) =>
+    new Date(timestamp).toLocaleDateString(
+      "en-CA",
+      {
+        timeZone: "Asia/Kolkata"
+      }
+    );
+
   useEffect(() => {
     loadGoals();
   }, []);
@@ -149,9 +159,9 @@ function Goals() {
 
     goals.forEach((goal) => {
       const date =
-        new Date(goal.created_at)
-          .toISOString()
-          .split("T")[0];
+        getISTDateFromTimestamp(
+          goal.created_at
+        );
 
       if (!grouped[date]) {
         grouped[date] = [];
@@ -163,9 +173,13 @@ function Goals() {
     const sorted =
       Object.entries(grouped)
         .sort(
-          ([dateA], [dateB]) =>
-            new Date(dateB) -
-            new Date(dateA)
+          ([dateA], [dateB]) => {
+            const dateAObj =
+              new Date(dateA);
+            const dateBObj =
+              new Date(dateB);
+            return dateBObj - dateAObj;
+          }
         );
 
     return sorted.map(

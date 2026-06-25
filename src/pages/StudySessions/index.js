@@ -15,6 +15,14 @@ function StudySessions() {
     notes: ""
   });
 
+  const getISTDate = () =>
+    new Date().toLocaleDateString(
+      "en-CA",
+      {
+        timeZone: "Asia/Kolkata"
+      }
+    );
+
   useEffect(() => {
     loadSessions();
   }, []);
@@ -121,9 +129,13 @@ function StudySessions() {
     const sorted =
       Object.entries(grouped)
         .sort(
-          ([dateA], [dateB]) =>
-            new Date(dateB) -
-            new Date(dateA)
+          ([dateA], [dateB]) => {
+            const dateAObj =
+              new Date(dateA);
+            const dateBObj =
+              new Date(dateB);
+            return dateBObj - dateAObj;
+          }
         );
 
     return sorted.map(
@@ -220,10 +232,7 @@ function StudySessions() {
         productivity:
           form.productivity,
         notes: form.notes,
-        date:
-          new Date()
-            .toISOString()
-            .split("T")[0]
+        date: getISTDate()
       };
 
       console.log(
